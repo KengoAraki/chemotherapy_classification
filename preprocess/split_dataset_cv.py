@@ -109,8 +109,7 @@ class splitWSIDataset(object):
         return natsorted(train_wsis), natsorted(valid_wsis), natsorted(test_wsis)
 
 
-def save_dataset(imgs_dir, output_dir):
-    cv = 5
+def save_dataset(imgs_dir: str, output_dir: str, cv: int=5):
     dataset = splitWSIDataset(imgs_dir, classes=[0, 1, 2], val_ratio=0.2, random_seed=0)
     sets_list = dataset.get_sets_list()
 
@@ -158,13 +157,100 @@ def save_dataset(imgs_dir, output_dir):
                 f.write(f"{test_wsis[i]}\n")
 
 
+# chemotherapy dataset用
+def save_dataset2(
+    imgs_dir: str,
+    output_dir: str,
+    classes: list=[0, 1, 2],
+    cv: int=3,
+    val_ratio: float=0.2,
+    random_seed: int=0,
+):
+    import copy
+
+    def get_sub_classes(classes):
+        # classesからsub-classを取得
+        sub_cl_list = []
+        for idx in range(len(classes)):
+            cl = classes[idx]
+            if isinstance(cl, list):
+                for sub_cl in cl:
+                    sub_cl_list.append(sub_cl)
+            else:
+                sub_cl_list.append(cl)
+        return sub_cl_list
+
+    def get_files(wsis, classes):
+        re_pattern = re.compile('|'.join([f"/{i}/" for i in get_sub_classes(classes)]))
+
+        files_list = []
+        for wsi in wsis:
+            files_list.extend(
+                [
+                    p for p in glob.glob(imgs_dir + f"*/{wsi}_*/*.png", recursive=True)
+                    if bool(re_pattern.search(p))
+                ]
+            )
+        return files_list
+
+    wsi_fold = [
+        ["H19-12183_8", "H19-12183_9"],
+        ["H19-12183_10", "H19-12183_11"],
+        ["H19-12183_13", "H19-12183_14"],
+    ]
+
+    for cv_num in range(cv):
+        logging.info(f"===== CV{cv_num} =====")
+        wsi_fold_tmp = copy.deepcopy(wsi_fold)
+        test_wsis = wsi_fold_tmp.pop(cv_num)
+        train_wsis = [wsi_name for fold in wsi_fold_tmp for wsi_name in fold]
+        logging.info(f"[wsi]  train: {len(train_wsis)}, test: {len(test_wsis)}")
+
+        # WSI割当のリストを保存
+        joblib.dump(train_wsis, output_dir + f"cv{cv_num}_train_wsi.jb", compress=3)
+        joblib.dump(test_wsis, output_dir + f"cv{cv_num}_test_wsi.jb", compress=3)
+
+        trvl_files = get_files(train_wsis, classes)
+        test_files = get_files(test_wsis, classes)
+        # trainに割り当てたWSIのパッチをランダムにtrain/validに分割
+        train_files, valid_files = train_test_split(
+            trvl_files, test_size=val_ratio, random_state=random_seed)
+        logging.info(f"[patch]  train: {len(train_files)}, valid: {len(valid_files)}, test: {len(test_files)}")
+
+        # パッチ割当のリストを保存
+        joblib.dump(train_files, output_dir + f"cv{cv_num}_train.jb", compress=3)
+        joblib.dump(valid_files, output_dir + f"cv{cv_num}_valid.jb", compress=3)
+        joblib.dump(test_files, output_dir + f"cv{cv_num}_test.jb", compress=3)
+
+        with open(output_dir + f"cv{cv_num}_dataset.txt", mode='w') as f:
+            f.write(
+                "== [wsi] ==\n"
+                + f"train: {len(train_wsis)}, test: {len(test_wsis)}"
+                + "\n==============\n")
+            f.write(
+                "== [patch] ==\n"
+                + f"train: {len(train_files)}, valid: {len(valid_files)}, test: {len(test_files)}"
+                + "\n==============\n")
+
+            f.write("== train (wsi) ==\n")
+            for i in range(len(train_wsis)):
+                f.write(f"{train_wsis[i]}\n")
+
+            f.write("\n== test (wsi) ==\n")
+            for i in range(len(test_wsis)):
+                f.write(f"{test_wsis[i]}\n")
+
+
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
         format='%(levelname)s: %(message)s'
     )
 
-    imgs_dir = "/mnt/ssdsub1/DFBConv_strage/mnt2/MF0012/"
-    output_dir = "/mnt/ssdsub1/DFBConv_strage/results/dataset/"
+    imgs_dir = "/mnt/ssdwdc/chemotherapy_strage/mnt2/"
+    output_dir = "/mnt/ssdwdc/chemotherapy_strage/dataset/"
 
-    save_dataset(imgs_dir, output_dir)
+    cv = 3
+    classes = [0, 1, 2]
+    val_ratio = 0.2
+    save_dataset2(imgs_dir, output_dir, classes=classes, cv=cv, val_ratio=val_ratio)
