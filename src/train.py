@@ -245,7 +245,7 @@ if __name__ == '__main__':
         logging.info(f'== CV{cv_num} ==')
         writer = SummaryWriter(
             log_dir=(
-                f"{config['main']['result_dir']}logs/{config['main']['facility']}_{config['main']['model']}_{config['main']['optim']}_batch{config['main']['batch_size']}_shape{config['main']['shape']}_cl{config['main']['classes']}_cv{cv_num}"
+                f"{config['main']['result_dir']}logs/{config['main']['model']}_{config['main']['optim']}_batch{config['main']['batch_size']}_shape{config['main']['shape']}_cl{config['main']['classes']}_cv{cv_num}"
             )
         )
 
@@ -255,35 +255,31 @@ if __name__ == '__main__':
         # TODO: 学習済みの重みを読み込めるように
 
         net.to(device=device)
-        train_wsis = joblib.load(
+        train_files = joblib.load(
             config['test']['jb_dir']
-            + f"{config['main']['facility']}/"
             + f"cv{cv_num}_"
-            + f"train_{config['main']['facility']}_wsi.jb"
+            + f"train.jb"
         )
-        valid_wsis = joblib.load(
+        valid_files = joblib.load(
             config['test']['jb_dir']
-            + f"{config['main']['facility']}/"
             + f"cv{cv_num}_"
-            + f"valid_{config['main']['facility']}_wsi.jb"
+            + f"valid.jb"
         )
-        test_wsis = joblib.load(
+        test_files = joblib.load(
             config['test']['jb_dir']
-            + f"{config['main']['facility']}/"
             + f"cv{cv_num}_"
-            + f"test_{config['main']['facility']}_wsi.jb"
+            + f"test.jb"
         )
 
         dataset = WSIDataset(
-            train_wsis,
-            valid_wsis,
-            test_wsis,
-            config['dataset']['imgs_dir'],
-            config['main']['classes'],
-            input_shape,
-            transform,
-            cv=config['main']['cv'],
-            cv_num=cv_num)
+            imgs_dir=config['dataset']['imgs_dir'],
+            train_files=train_files,
+            valid_files=valid_files,
+            test_files=test_files,
+            classes=config['main']['classes'],
+            shape=input_shape,
+            transform=transform
+        )
         train_data, valid_data, test_data = dataset.get()
         train_wsi, valid_wsi, test_wsi = dataset.get_wsi_split()
 
@@ -310,7 +306,7 @@ if __name__ == '__main__':
                       batch_size=config['main']['batch_size'],
                       device=device,
                       classes=config['main']['classes'],
-                      checkpoint_dir=f"{config['main']['result_dir']}checkpoints/{config['main']['facility']}_{config['main']['classes']}/",
+                      checkpoint_dir=f"{config['main']['result_dir']}checkpoints/{config['main']['classes']}/",
                       writer=writer,
                       patience=config['main']['patience'],
                       stop_cond=config['main']['stop_cond'],

@@ -1,25 +1,23 @@
 main:
-  classes: [0, [1, 2, 3]]
+  classes: [0, 1, 2]
   epochs: 100
   batch_size: 32
   model: "resnet50"
   optim: "Adam"
   load: False
   shape: [256, 256]
-  val_ratio: 0.2
   patience: 5
   stop_cond: "mIoU"
-  cv: 5
-  facility: "MF0012"
-  result_dir: "/mnt/secssd/SSDA_Annot_WSI_strage/"
+  cv: 3
+  result_dir: "/mnt/ssdwdc/chemotherapy_strage/result/"
   
 dataset:
-  imgs_dir: "/mnt/secssd/ADA_strage/mnt2/MF0012/"
+  imgs_dir: "/mnt/ssdwdc/chemotherapy_strage/mnt2/"
 
 test:
   model_path:  ""
-  output_dir: "/mnt/secssd/SSDA_Annot_WSI_strage/test/"
-  jb_dir: "/mnt/secssd/SSDA_Annot_WSI_strage/dataset/"
+  output_dir: "/mnt/ssdwdc/chemotherapy_strage/result/test/"
+  jb_dir: "/mnt/ssdwdc/chemotherapy_strage/dataset/"
   target_data: "test"
   get_miss: False
   likelihood: True
