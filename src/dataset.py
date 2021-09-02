@@ -158,6 +158,7 @@ class WSIDataset(object):
             self.train_files = self.get_files(self.train_wsis)
             self.valid_files = self.get_files(self.valid_wsis)
             self.test_files = self.get_files(self.test_wsis)
+            print(f"[wsi]  train: {len(self.train_wsis)}, valid: {len(self.valid_wsis)}, test: {len(self.test_wsis)}")
         elif ((self.train_files is not None)
             and (self.valid_files is not None)
             and (self.test_files is not None)
@@ -167,7 +168,6 @@ class WSIDataset(object):
             sys.exit("wsis lists or files lists are not given")
 
         self.data_len = len(self.train_files) + len(self.valid_files) + len(self.test_files)
-        print(f"[wsi]  train: {len(self.train_wsis)}, valid: {len(self.valid_wsis)}, test: {len(self.test_wsis)}")
         print(f"[data] train: {len(self.train_files)}, valid: {len(self.valid_files)}, test: {len(self.test_files)}")
 
         test_files = natsorted(test_files)
@@ -207,9 +207,6 @@ class WSIDataset(object):
                 ]
             )
         return files_list
-
-    def get_wsi_list(self):
-        return natsorted(self.train_wsis), natsorted(self.valid_wsis), natsorted(self.test_wsis)
 
     def get(self):
         return self.train_data, self.valid_data, self.test_data
