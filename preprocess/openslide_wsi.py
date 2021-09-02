@@ -376,7 +376,7 @@ def main():
     CLASSES = [0, 1, 2]
     # ------------------ #
 
-    wsi_list = natsorted([wsi_path for wsi_path in (p_parent_dir / "origin/").iterdir()])
+    wsi_list = natsorted([wsi_path for wsi_path in (p_parent_dir / "origin/").glob("*.ndpi")])
 
     for wsi_path in wsi_list:
         wsi_path = str(wsi_path)
@@ -390,6 +390,11 @@ def main():
             semantic_mask_dir=semantic_mask_dir)
 
         print("==== {} ====".format(wsi.wsi_name))
+
+        if "H19-12183_10" in wsi_path:
+            print("pass")
+            continue
+
         bb_list = wsi._getBoundingBox()
 
         for bb in bb_list:
