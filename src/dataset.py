@@ -1,4 +1,5 @@
 import os
+import sys
 import glob
 from PIL import Image
 import numpy as np
@@ -6,8 +7,6 @@ import torch
 from torchvision import transforms
 from natsort import natsorted
 import re
-from sklearn.model_selection import train_test_split
-import random
 
 
 def get_files(wsis, classes, imgs_dir):
@@ -117,34 +116,59 @@ class WSI(torch.utils.data.Dataset):
 
 
 class WSIDataset(object):
-    def __init__(self, train_wsis, valid_wsis, test_wsis, imgs_dir, classes=[0, 1, 2, 3], shape=(512, 512), transform=None, cv=5, cv_num=0):
+    def __init__(
+        self,
+        imgs_dir: str,
+        train_wsis: list=None,
+        valid_wsis: list=None,
+        test_wsis: list=None,
+        train_files: list=None,
+        valid_files: list=None,
+        test_files: list=None,
+        classes: list=[0, 1, 2, 3],
+        shape: tuple=(512, 512),
+        transform: dict=None,
+    ):
         self.train_wsis = train_wsis
         self.valid_wsis = valid_wsis
         self.test_wsis = test_wsis
+
+        self.train_files = train_files
+        self.valid_files = valid_files
+        self.test_files = test_files
 
         self.imgs_dir = imgs_dir
         self.classes = classes
         self.shape = shape
         self.transform = transform
-        self.cv = None
-        self.cv_num = None
         self.sub_classes = self.get_sub_classes()
 
-        self.wsi_list = []
-        for i in range(len(self.sub_classes)):
-            sub_cl = self.sub_classes[i]
-            self.wsi_list.extend([p[:-4] for p in os.listdir(self.imgs_dir + f"{sub_cl}/")])
-        self.wsi_list = list(set(self.wsi_list))
-        # os.listdirによる実行時における要素の順不同対策のため
-        self.wsi_list = natsorted(self.wsi_list)
+        # self.wsi_list = []
+        # for i in range(len(self.sub_classes)):
+        #     sub_cl = self.sub_classes[i]
+        #     self.wsi_list.extend([p[:-4] for p in os.listdir(self.imgs_dir + f"{sub_cl}/")])
+        # self.wsi_list = list(set(self.wsi_list))
+        # # os.listdirによる実行時における要素の順不同対策のため
+        # self.wsi_list = natsorted(self.wsi_list)
 
-        train_files = self.get_files(self.train_wsis)
-        valid_files = self.get_files(self.valid_wsis)
-        test_files = self.get_files(self.test_wsis)
+        if ((self.train_wsis is not None)
+            and (self.valid_wsis is not None)
+            and (self.valid_wsis is not None)
+        ):
+            self.train_files = self.get_files(self.train_wsis)
+            self.valid_files = self.get_files(self.valid_wsis)
+            self.test_files = self.get_files(self.test_wsis)
+        elif ((self.train_files is not None)
+            and (self.valid_files is not None)
+            and (self.test_files is not None)
+        ):
+            pass
+        else:
+            sys.exit("wsis lists or files lists are not given")
 
-        self.data_len = len(train_files) + len(valid_files) + len(test_files)
+        self.data_len = len(self.train_files) + len(self.valid_files) + len(self.test_files)
         print(f"[wsi]  train: {len(self.train_wsis)}, valid: {len(self.valid_wsis)}, test: {len(self.test_wsis)}")
-        print(f"[data] train: {len(train_files)}, valid: {len(valid_files)}, test: {len(test_files)}")
+        print(f"[data] train: {len(self.train_files)}, valid: {len(self.valid_files)}, test: {len(self.test_files)}")
 
         test_files = natsorted(test_files)
 
@@ -157,7 +181,6 @@ class WSIDataset(object):
         self.test_data = WSI(test_files, self.classes, self.shape, test_transform)
 
     def __len__(self):
-        # return len(self.file_list)
         return len(self.data_len)
 
     def get_sub_classes(self):
@@ -185,11 +208,8 @@ class WSIDataset(object):
             )
         return files_list
 
-    def get_wsi_split(self):
+    def get_wsi_list(self):
         return natsorted(self.train_wsis), natsorted(self.valid_wsis), natsorted(self.test_wsis)
-
-    def get_wsi_num(self):
-        return len(self.wsi_list)
 
     def get(self):
         return self.train_data, self.valid_data, self.test_data
