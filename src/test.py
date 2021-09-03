@@ -10,7 +10,7 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from src.dataset import WSI, get_files
+from src.dataset import WSI
 from src.eval import eval_net_test, plot_confusion_matrix, eval_metrics
 from src.util import fix_seed
 from src.model import build_model
@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
     logging.basicConfig(
         level=logging.INFO,
-        filename=f"{config['test']['output_dir']}{config['test']['target_data']}_{config['main']['facility']}.txt",
+        filename=f"{config['test']['output_dir']}{config['test']['target_data']}.txt",
         format='%(levelname)s: %(message)s'
     )
 
@@ -48,20 +48,6 @@ if __name__ == "__main__":
             + "_batch" + str(config['main']['batch_size'])
             + "_shape" + str(config['main']['shape']))
         logging.info(f"{project}\n")
-
-        wsis = joblib.load(
-            config['test']['jb_dir']
-            + f"{config['main']['facility']}/"
-            + f"cv{cv_num}_"
-            + f"{config['test']['target_data']}_"
-            + f"{config['main']['facility']}_wsi.jb"
-        )
-
-        files = get_files(
-            wsis,
-            config['main']['classes'],
-            config['dataset']['imgs_dir']
-        )
 
         if len(config['main']['classes']) > 1:
             criterion = nn.CrossEntropyLoss()
@@ -79,6 +65,12 @@ if __name__ == "__main__":
         net.to(device=device)
         net.load_state_dict(
             torch.load(weight_path, map_location=device))
+
+        files = joblib.load(
+            config['test']['jb_dir']
+            + f"cv{cv_num}_"
+            + f"{config['test']['target_data']}.jb"
+        )
 
         dataset = WSI(
             files,
@@ -110,7 +102,7 @@ if __name__ == "__main__":
         cm_plt.savefig(
             config['test']['output_dir']
             + project
-            + f"_{config['test']['target_data']}_{config['main']['facility']}_nn-confmatrix.png"
+            + f"_{config['test']['target_data']}_nn-confmatrix.png"
         )
         plt.clf()
         plt.close()
@@ -121,7 +113,7 @@ if __name__ == "__main__":
         cm_plt.savefig(
             config['test']['output_dir']
             + project
-            + f"_{config['test']['target_data']}_{config['main']['facility']}_confmatrix.png"
+            + f"_{config['test']['target_data']}_confmatrix.png"
         )
         plt.clf()
         plt.close()
