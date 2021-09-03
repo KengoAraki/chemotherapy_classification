@@ -71,7 +71,7 @@ class WSI(torch.utils.data.Dataset):
         if self.transform is not None:
             if self.transform['Resize']:
                 img_pil = transforms.Resize(
-                    self.shape, interpolation=0
+                    self.shape
                 )(img_pil)
             if self.transform['HFlip']:
                 img_pil = transforms.RandomHorizontalFlip(0.5)(img_pil)
