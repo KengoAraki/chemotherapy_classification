@@ -15,7 +15,11 @@ dataset:
   imgs_dir: "/mnt/ssdwdc/chemotherapy_strage/mnt2/"
 
 test:
-  model_path:  ""
+  weight_dir: "/mnt/ssdwdc/chemotherapy_strage/result/checkpoints/[0, 1, 2]/"
+  weight_names:
+    - "cv0_epoch11_best_val_mIoU.pth"
+    - "cv1_epoch21_best_val_mIoU.pth"
+    - "cv2_epoch7_best_val_mIoU.pth"
   output_dir: "/mnt/ssdwdc/chemotherapy_strage/result/test/"
   jb_dir: "/mnt/ssdwdc/chemotherapy_strage/dataset/"
   target_data: "test"
