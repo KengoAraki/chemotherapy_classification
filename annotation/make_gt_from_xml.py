@@ -26,7 +26,7 @@ def init_annot_dict(labels:list):
 #     (for ASAP)      #
 # --------------------#
 def load_xml_file(
-    xml_path, labels:list=['Tumor range', 'Residual tumor'], log_path=None
+    xml_path, labels:list=['Tumor bed', 'Residual tumor'], label_dict:dict=None, log_path=None
 ):
     tree = ET.parse(xml_path)
     root = tree.getroot()
@@ -34,7 +34,7 @@ def load_xml_file(
     annotations = root[0].findall("Annotation")
     num_annotations = len(annotations)
 
-    annot_dict = init_annot_dict (labels)
+    annot_dict = init_annot_dict(labels)
 
     for i in range(num_annotations):
         tmp = annotations[i].findall("Coordinates")
@@ -51,6 +51,11 @@ def load_xml_file(
                 dots_array[j, 1] = y
 
             name = annotations[i].attrib["Name"]
+            if label_dict is not None:
+                try:
+                    name = label_dict[name]
+                except KeyError:
+                    print(f"Cannot find {name} in label_dict")
 
             if name in labels:
                 annot_dict[name].append(dots_array)
@@ -102,7 +107,7 @@ def calc_ndpa_coord(wsi_path, x, y):
 
 
 def load_ndpa_file(
-    ndpa_path, wsi_path, labels:list=['Tumor range', 'Residual tumor']
+    ndpa_path, wsi_path, labels:list=['Tumor bed', 'Residual tumor']
 ):
     tree = ET.parse(ndpa_path)
     root = tree.getroot()
@@ -111,7 +116,7 @@ def load_ndpa_file(
     num_annotations = len(annotations)
     print(num_annotations)
 
-    annot_dict = init_annot_dict (labels)
+    annot_dict = init_annot_dict(labels)
 
     for i in range(num_annotations):
         tmp = annotations[i]
@@ -147,15 +152,13 @@ def load_ndpa_file(
 # ------------------------------#
 #    draw cancergrade mask     #
 # ------------------------------#
-"""
-annot_list:
-    [dots_array_00, ... , dots_array_0n]
-"""
-
-
 def draw_cancergrade_mask(
     title: str, annot_list: list, org_size: tuple, output_size: tuple, save_dir: str
 ):
+    """
+    annot_list:
+        [dots_array_00, ... , dots_array_0n]
+    """
     mask = Image.new("L", org_size)
     mask_draw = ImageDraw.Draw(mask)
 
@@ -173,17 +176,15 @@ def draw_cancergrade_mask(
 # ---------------------------------#
 #  make pre-cancergrade from xml  #
 # ---------------------------------#
-"""
-annot_dict:
-    { "Tumor": [dots_array_00, ... , dots_array_0n],
-      "Non-Tumor": [dots_array_10, ... , dots_array_1n] }
-    level: rescaled level
-"""
-
-
 def make_pre_cancergrade(
-    wsi_path: str, annot_dict: dict, save_dir: str, level: int=5, wsi_name: str=None
+    wsi_path: str, annot_dict: dict, save_dir: str, level: int=5, wsi_name: str=None,
 ):
+    """
+    annot_dict:
+        { "Tumor": [dots_array_00, ... , dots_array_0n],
+        "Non-Tumor": [dots_array_10, ... , dots_array_1n] }
+        level: rescaled level
+    """
     if not wsi_name:
         # wsi_name = return_filename(wsi_path)
         wsi_name = os.path.splitext(os.path.basename(wsi_path))[0]

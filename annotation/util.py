@@ -1,6 +1,15 @@
 import os
 import sys
 
+chemotherapy_label_dict = {
+    "Tumor bed": "Tumor bed",
+    "Tumor range": "Tumor bed",
+    "Tumor Range": "Tumor bed",
+    "Tumor Bed": "Tumor bed",
+    "Residual tumor": "Residual tumor",
+    "Residual Tumor": "Residual tumor",
+}
+
 
 def f_write(file_path, s):
     with open(file_path, mode="a") as f:
@@ -52,5 +61,5 @@ def get_filename(filepath: str):
 
 def convert_space2uline(text: str):
     if " " in text:
-        text.replace(" ", "_")
+        text = text.replace(" ", "_")
     return text

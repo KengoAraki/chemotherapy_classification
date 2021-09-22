@@ -1,3 +1,4 @@
+import os
 import cv2
 import glob
 from PIL import Image
@@ -15,7 +16,7 @@ def make_overlaid(
     bg_dir: str,
     output_dir: str,
     th: int=240,
-    labels: list=['Tumor range', 'Residual tumor'],
+    labels: list=['Tumor bed', 'Residual tumor'],
     is_nolabel_normal: bool=False
 ):
     if is_nolabel_normal:
@@ -35,29 +36,33 @@ def make_overlaid(
         canvas = cv2.imread(bg_path, cv2.IMREAD_COLOR)
         canvas_gray = cv2.imread(bg_path, cv2.IMREAD_GRAYSCALE)
 
-        # paste each cancergrade's color and num
-        for i, label in enumerate(labels):
-            grade = i + 1
-            label = convert_space2uline(label)
-            grade_path = cg_dir + wsi_name + "_mask_level05_" + label + ".tif"
-            grade_mask = cv2.imread(grade_path, cv2.IMREAD_GRAYSCALE)
-            canvas[grade_mask > th] = num_to_color(grade)
-            canvas_gray[grade_mask > th] = grade
+        # if cancer grade mask exists
+        if os.path.isfile(cg_dir + wsi_name + "_mask_level05_nolabel.tif"):
+            # paste each cancergrade's color and num
+            for i, label in enumerate(labels):
+                grade = i + 1
+                label = convert_space2uline(label)
+                grade_path = cg_dir + wsi_name + "_mask_level05_" + label + ".tif"
+                grade_mask = cv2.imread(grade_path, cv2.IMREAD_GRAYSCALE)
+                canvas[grade_mask > th] = num_to_color(grade)
+                canvas_gray[grade_mask > th] = grade
 
-        # paste nolabel area
-        nolabel_path = cg_dir + wsi_name + "_mask_level05_nolabel.tif"
-        nolabel_img = cv2.imread(nolabel_path, cv2.IMREAD_GRAYSCALE)
-        canvas[nolabel_img > th] = nolabel_color
-        canvas_gray[nolabel_img > th] = nolabel_grade
+            # paste nolabel area
+            nolabel_path = cg_dir + wsi_name + "_mask_level05_nolabel.tif"
+            nolabel_img = cv2.imread(nolabel_path, cv2.IMREAD_GRAYSCALE)
+            canvas[nolabel_img > th] = nolabel_color
+            canvas_gray[nolabel_img > th] = nolabel_grade
 
-        Image.fromarray(canvas).save(output_dir + "rgb/" + wsi_name + "_overlaid.tif")
-        Image.fromarray(canvas_gray).save(
-            output_dir + "gray/" + wsi_name + "_overlaid.tif"
-        )
+            Image.fromarray(canvas).save(output_dir + "rgb/" + wsi_name + "_overlaid.tif")
+            Image.fromarray(canvas_gray).save(
+                output_dir + "gray/" + wsi_name + "_overlaid.tif"
+            )
+        else:
+            print(f"{wsi_name}: cancer grade mask does not exists")
 
 
 if __name__ == "__main__":
-    PARENT_DIR = "/mnt/ssdwdc/ResearchData/chemotherapy/"
+    PARENT_DIR = "/mnt/ssdwdc/ResearchData/chemotherapy/202109_chemotherapy/"
 
     CANCERGRADE_DIR = PARENT_DIR + "mask_cancergrade/"
     BG_MASK_DIR = PARENT_DIR + "mask_bg/"

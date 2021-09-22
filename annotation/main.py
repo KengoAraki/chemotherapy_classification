@@ -6,15 +6,15 @@ import glob
 from make_bg_mask import make_bg_mask, make_small_wsi
 from make_gt_from_xml import load_xml_file, make_pre_cancergrade, make_cancergrade_mask
 from make_overlaid_mask import make_overlaid
-from util import get_filename
+from util import get_filename, chemotherapy_label_dict
 
 
 def main():
-    PARENT_DIR = "/mnt/ssdwdc/ResearchData/chemotherapy/"
+    PARENT_DIR = "/mnt/ssdwdc/ResearchData/chemotherapy/202109_chemotherapy/"
 
     MODE = {
         "cleanup_dir": False,
-        "make_bg_mask": True,
+        "make_bg_mask": False,
         "make_cancergrade_mask": True,
         "make_overlaid_mask": True,
     }
@@ -28,18 +28,21 @@ def main():
     LOG_FILE = PARENT_DIR + "error_log.txt"
 
     DOWN_LEVEL = 5  # 縮小サイズ
-    LABELS = ['Tumor range', 'Residual tumor']
+    LABELS = ['Tumor bed', 'Residual tumor']
+    LABEL_DICT = chemotherapy_label_dict
     OVERLAID_TH = 250
     IS_NOLABEL_NORMAL = True
+    KERNEL_SIZE = 5
     MASK_BG_ITERATIONS=5
 
 
     # # === cleanup dir === #
-    # if MODE["cleanup_dir"]:
-    # os.mkdir(SMALLFOLDER_DIR)
-    # os.mkdir(BG_MASK_DIR)
-    # os.mkdir(CANCERGRADE_DIR)
-    # os.mkdir(OVERLAID_DIR)
+    if MODE["cleanup_dir"]:
+        os.mkdir(SMALLFOLDER_DIR)
+        os.mkdir(BG_MASK_DIR)
+        os.mkdir(CANCERGRADE_DIR)
+        os.mkdir(OVERLAID_DIR + "rgb/")
+        os.mkdir(OVERLAID_DIR + "gray/")
 
     # === make_bg_mask & small_image === #
     if MODE["make_bg_mask"]:
@@ -48,7 +51,7 @@ def main():
         for wsi_path in WSIs:
             wsi_name = get_filename(wsi_path)
             make_small_wsi(wsi_path, wsi_name, SMALLFOLDER_DIR, level=DOWN_LEVEL)
-        make_bg_mask(SMALLFOLDER_DIR, BG_MASK_DIR, DOWN_LEVEL, iterations=MASK_BG_ITERATIONS)
+        make_bg_mask(SMALLFOLDER_DIR, BG_MASK_DIR, DOWN_LEVEL, kernel_size=KERNEL_SIZE, iterations=MASK_BG_ITERATIONS)
 
     # === make_gt_from_xml === #
     if MODE["make_cancergrade_mask"]:
@@ -67,7 +70,7 @@ def main():
                 continue
 
             annot_dict = load_xml_file(
-                xml_path, labels=LABELS, log_path=None
+                xml_path, labels=LABELS, label_dict=LABEL_DICT, log_path=LOG_FILE
             )
             make_pre_cancergrade(
                 wsi_path,

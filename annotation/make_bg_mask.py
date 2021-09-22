@@ -37,7 +37,7 @@ def remove_objects(img, lower_size):
 
 
 # make bg_mask
-def make_bg_mask(src_dir, save_dir, down_level, iterations=2):
+def make_bg_mask(src_dir, save_dir, down_level, kernel_size=3, iterations=2):
 
     small_images = sorted(glob.glob(src_dir + "*.tif"))
 
@@ -64,7 +64,7 @@ def make_bg_mask(src_dir, save_dir, down_level, iterations=2):
         _, img = cv2.threshold(img, 1, 255, cv2.THRESH_BINARY)
 
         # Closing
-        kernel = np.ones((3, 3), np.uint8)  # kernel size は奇数！
+        kernel = np.ones((kernel_size, kernel_size), np.uint8)  # kernel size は奇数！
         img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel, iterations=iterations)
         img = cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel, iterations=iterations)
 
