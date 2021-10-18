@@ -245,6 +245,9 @@ def make_cancergrade_mask(
     nolabel_mask = np.zeros(bg_mask.shape, dtype=np.uint8)
 
     grade_paths = natsorted(glob.glob(f"{pre_gt_dir}{wsi_name}_mask_level0{str(level)}_*.tif"))
+    # 既にnolabelが含まれている場合は除去
+    grade_paths = [path for path in grade_paths if "nolabel" not in path]
+
 
     for grade_path in grade_paths:
         grade_mask = cv2.imread(grade_path, cv2.IMREAD_GRAYSCALE)
@@ -263,7 +266,7 @@ def make_cancergrade_mask(
 
 
 if __name__ == "__main__":
-    PARENT_DIR = "/mnt/ssdwdc/ResearchData/chemotherapy/"
+    PARENT_DIR = "/mnt/ssdwdc/ResearchData/chemotherapy/202110_chemotherapy/"
 
     ORIGIN_DIR = PARENT_DIR + "origin/"
     GT_TMP_DIR = PARENT_DIR + "mask_cancergrade/"
