@@ -73,6 +73,7 @@ class OpenSlideWSI(openslide.OpenSlide):
 
         return bb_list
 
+    # FIXME: Fix bug when level is setted other than 0
     # split a bounding-box area of wsi to patch images
     def bb_to_patch(
         self,
@@ -85,21 +86,38 @@ class OpenSlideWSI(openslide.OpenSlide):
         contours_th=0.5,
     ):  # size=(width, height)
         assert isinstance(bb, dict), "bb(bounding-box) must be dict type"
-        # bounding_box
-        bx, by, bw, bh = bb['x'], bb['y'], bb['w'], bb['h']
         obj_name = bb['name']
 
-        # bbをlevel[0]用に変換（bbはbg_mask_level05における座標のため）
-        bx_wsi = bb['x'] * (2 ** (default_level - level))
-        by_wsi = bb['y'] * (2 ** (default_level - level))
-        bw_wsi = bb['w'] * (2 ** (default_level - level))
-        bh_wsi = bb['h'] * (2 ** (default_level - level))
+        # FIXME: fix here! === #
+        # # bbをlevel用に変換（bbはbg_mask_level05における座標のため）
+        # bx_wsi = bb['x'] * (2 ** (default_level - level))  # bounding-boxの左上x座標(level)
+        # by_wsi = bb['y'] * (2 ** (default_level - level))  # bounding-boxの左上y座標(level)
+        # bw_wsi = bb['w'] * (2 ** (default_level - level))  # bounding-boxの横幅(level)
+        # bh_wsi = bb['h'] * (2 ** (default_level - level))  # bounding-boxの縦幅(level)
 
-        width = self.level_dimensions[level][0]
-        height = self.level_dimensions[level][1]
+        # width = self.level_dimensions[level][0]  # WSIの横幅(level)
+        # height = self.level_dimensions[level][1]  # WSIの縦幅(level)
+        # row_max = int((bw_wsi - size[0]) / stride + 1)
+        # column_max = int((bh_wsi - size[1]) / stride + 1)
+
+        # # 細胞領域のマスク画像，背景領域のマスク画像の１ピクセルが特定のレベルのWSIの何ピクセルに相当するか計算
+        # stride_rate = stride / 2 ** (default_level - level)
+        # width_rate = size[0] / 2 ** (default_level - level)
+        # height_rate = size[1] / 2 ** (default_level - level)
+        # ===================== #
+
+        # bbのx, yをlevel0用に変換（bbはbg_mask_level05における座標のため）
+        bx_wsi_0 = bb['x'] * (2 ** default_level)  # bounding-boxの左上x座標(level0)
+        by_wsi_0 = bb['y'] * (2 ** default_level) # bounding-boxの左上y座標(level0)
+
+        # bbのw, hを特定のlevel用に変換
+        bw_wsi = bb['w'] * (2 ** (default_level - level))  # bounding-boxの横幅(level)
+        bh_wsi = bb['h'] * (2 ** (default_level - level))  # bounding-boxの縦幅(level)
+
         row_max = int((bw_wsi - size[0]) / stride + 1)
         column_max = int((bh_wsi - size[1]) / stride + 1)
 
+        # 細胞領域のマスク画像，背景領域のマスク画像の１ピクセルが特定のレベルのWSIの何ピクセルに相当するか計算
         stride_rate = stride / 2 ** (default_level - level)
         width_rate = size[0] / 2 ** (default_level - level)
         height_rate = size[1] / 2 ** (default_level - level)
@@ -113,11 +131,13 @@ class OpenSlideWSI(openslide.OpenSlide):
         cnt = 0
         for column in range(column_max):
             for row in range(row_max):
-                i = int(bx_wsi + (row * stride * (2 ** level)))
-                j = int(by_wsi + (column * stride * (2 ** level)))
+                # i = int(bx_wsi + (row * stride * (2 ** level)))
+                # j = int(by_wsi + (column * stride * (2 ** level)))
+                i = int(bx_wsi_0 + (row * stride * (2 ** level)))
+                j = int(by_wsi_0 + (column * stride * (2 ** level)))
 
-                mask_base_idx = {'row': int(bx + (row * stride_rate)),
-                                 'col': int(by + (column * stride_rate))}
+                mask_base_idx = {'row': int(bb['x'] + (row * stride_rate)),
+                                 'col': int(bb['y'] + (column * stride_rate))}
 
                 # width_rate×height_rateの領域(背景領域のマスク画像)の画素値が0の画素数で比較
                 if (
@@ -125,7 +145,7 @@ class OpenSlideWSI(openslide.OpenSlide):
                         np.where(
                             bg_mask_np[
                                 mask_base_idx['col']:int(mask_base_idx['col'] + height_rate),
-                                mask_base_idx['row']: int(mask_base_idx['row'] + width_rate),
+                                mask_base_idx['row']:int(mask_base_idx['row'] + width_rate),
                             ]
                             == 0
                         )[0]
@@ -365,11 +385,11 @@ class OpenSlideWSI(openslide.OpenSlide):
 def main():
     parent_dir = "/mnt/ssdwdc/chemotherapy_strage/mnt1/"
     p_parent_dir = pathlib.Path(parent_dir)
-    output_main_dir = parent_dir.replace("mnt1/", "mnt2/")
+    output_main_dir = parent_dir.replace("mnt1/", "mnt2_LEV1/")
 
     # ------------------ #
     DEFAULT_LEVEL = 5
-    LEVEL = 0
+    LEVEL = 1
     SIZE = (256, 256)
     STRIDE = 256
     CONTOURS_TH = 1
@@ -391,10 +411,6 @@ def main():
 
         print("==== {} ====".format(wsi.wsi_name))
 
-        if "H19-12183_10" in wsi_path:
-            print("pass")
-            continue
-
         bb_list = wsi._getBoundingBox()
 
         for bb in bb_list:
@@ -413,9 +429,9 @@ def main():
 
 # 予測画像用のパッチ切り取り
 def main_for_predmap():
-    parent_dir = "/mnt/ssdsub1/DFBConv_strage/mnt1/MF0012/"
+    parent_dir = "/mnt/ssdwdc/chemotherapy_strage/mnt1/"
     p_parent_dir = pathlib.Path(parent_dir)
-    output_main_dir = parent_dir.replace("mnt1/", "mnt4(ForPredmap)/")
+    output_main_dir = parent_dir.replace("mnt1/", "mnt3/")
 
     # ------------------ #
     DEFAULT_LEVEL = 5
@@ -424,10 +440,16 @@ def main_for_predmap():
     STRIDE = 256
     # ------------------ #
 
-    wsi_list = natsorted([wsi_path for wsi_path in (p_parent_dir / "origin/").iterdir()])
+    wsi_list = natsorted([wsi_path for wsi_path in (p_parent_dir / "origin/").glob("*.ndpi")])
+    skip_list = ["H19-12183_8", "H19-12183_9", "H19-12183_10", "H19-12183_11", "H19-12183_13", "H19-12183_14"]
 
     for wsi_path in wsi_list:
         wsi_path = str(wsi_path)
+
+        tmp_skip_list = [s for s in skip_list if s in wsi_path]
+        if len(tmp_skip_list) > 0:
+            print(f"skip: {wsi_path}")
+            continue
 
         wsi = OpenSlideWSI(
             wsi_path,
