@@ -10,11 +10,11 @@ from util import get_filename, chemotherapy_label_dict
 
 
 def main():
-    PARENT_DIR = "/mnt/ssdwdc/ResearchData/chemotherapy/202109_chemotherapy/"
+    PARENT_DIR = "/mnt/ssdwdc/ResearchData/chemotherapy/202112_chemotherapy/"
 
     MODE = {
         "cleanup_dir": False,
-        "make_bg_mask": False,
+        "make_bg_mask": True,
         "make_cancergrade_mask": True,
         "make_overlaid_mask": True,
     }
@@ -38,11 +38,16 @@ def main():
 
     # # === cleanup dir === #
     if MODE["cleanup_dir"]:
-        os.mkdir(SMALLFOLDER_DIR)
-        os.mkdir(BG_MASK_DIR)
-        os.mkdir(CANCERGRADE_DIR)
-        os.mkdir(OVERLAID_DIR + "rgb/")
-        os.mkdir(OVERLAID_DIR + "gray/")
+        if os.path.isdir(SMALLFOLDER_DIR) is False:
+            os.mkdir(SMALLFOLDER_DIR)
+        if os.path.isdir(BG_MASK_DIR) is False:
+            os.mkdir(BG_MASK_DIR)
+        if os.path.isdir(CANCERGRADE_DIR) is False:
+            os.mkdir(CANCERGRADE_DIR)
+        if os.path.isdir(OVERLAID_DIR) is False:
+            os.mkdir(OVERLAID_DIR)
+            os.mkdir(OVERLAID_DIR + "rgb/")
+            os.mkdir(OVERLAID_DIR + "gray/")
 
     # === make_bg_mask & small_image === #
     if MODE["make_bg_mask"]:
