@@ -1,0 +1,27 @@
+main:
+  classes: [0, 1, 2]
+  epochs: 100
+  batch_size: 128
+  model: "resnet50"
+  optim: "Adam"
+  load: False
+  shape: [256, 256]
+  patience: 5
+  stop_cond: "mIoU"
+  cv: 3
+  jb_dir: "/mnt/ssdwdc/chemotherapy_strage/dataset/09_mixcases/"
+  result_dir: "/mnt/ssdwdc/chemotherapy_strage/result_mixcases/"
+  
+dataset:
+  imgs_dir: "/mnt/ssdwdc/chemotherapy_strage/mnt2_LEV0/"
+
+test:
+  weight_dir: "/mnt/ssdwdc/chemotherapy_strage/result_mixcases/checkpoints/[0, 1, 2]/"
+  weight_names:
+    - "cv0_epoch4_best_val_mIoU.pth"
+    - "cv1_epoch9_best_val_mIoU.pth"
+    - "cv2_epoch9_best_val_mIoU.pth"
+  output_dir: "/mnt/ssdwdc/chemotherapy_strage/result_mixcases/test/"
+  target_data: "test"
+  get_miss: False
+  likelihood: True

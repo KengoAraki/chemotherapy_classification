@@ -225,10 +225,9 @@ def early_stop(val, epoch, best_model_info, patience=5, mode='max'):
 
 if __name__ == '__main__':
     fix_seed(0)
-    # # config_path = './config/config_src.yaml'
-    # config_path = '../config/config_src.yaml'
 
-    config_path = '../config/config_src_10_valwsi_LEV0.yaml'
+    config_path = '../config/config_src_LEV0.yaml'
+    # config_path = '../config/config_src_LEV1.yaml'
 
     with open(config_path) as file:
         config = yaml.safe_load(file.read())
@@ -247,37 +246,35 @@ if __name__ == '__main__':
         logging.info(f'== CV{cv_num} ==')
         writer = SummaryWriter(
             log_dir=(
-                f"{config['main']['result_dir']}logs/{config['main']['model']}_{config['main']['optim']}_batch{config['main']['batch_size']}_shape{config['main']['shape']}_cl{config['main']['classes']}_cv{cv_num}"
+                f"{config['main']['result_dir']}logs/{config['main']['model']}_{config['main']['optim']}_batch{config['main']['batch_size']}_shape{config['main']['shape']}_cl{config['main']['classes']}_lev{config['main']['level']}_cv{cv_num}"
             )
         )
 
         net = build_model(
             config['main']['model'], num_classes=len(config['main']['classes']))
-
-        # TODO: 学習済みの重みを読み込めるように
-
         net.to(device=device)
-        train_files = joblib.load(
-            config['main']['jb_dir']
+
+        train_wsis = joblib.load(
+            config['dataset']['jb_dir']
             + f"cv{cv_num}_"
-            + f"train.jb"
+            + f"train_wsi.jb"
         )
-        valid_files = joblib.load(
-            config['main']['jb_dir']
+        valid_wsis = joblib.load(
+            config['dataset']['jb_dir']
             + f"cv{cv_num}_"
-            + f"valid.jb"
+            + f"valid_wsi.jb"
         )
-        test_files = joblib.load(
-            config['main']['jb_dir']
+        test_wsis = joblib.load(
+            config['dataset']['jb_dir']
             + f"cv{cv_num}_"
-            + f"test.jb"
+            + f"test_wsi.jb"
         )
 
         dataset = WSIDataset(
             imgs_dir=config['dataset']['imgs_dir'],
-            train_files=train_files,
-            valid_files=valid_files,
-            test_files=test_files,
+            train_wsis=train_wsis,
+            valid_wsis=valid_wsis,
+            test_wsis=test_wsis,
             classes=config['main']['classes'],
             shape=input_shape,
             transform=transform
@@ -286,6 +283,7 @@ if __name__ == '__main__':
 
         logging.info(f'''Starting training:
             Classes:           {config['main']['classes']}
+            Level:             {config['main']['level']}
             Epochs:            {config['main']['epochs']}
             Batch size:        {config['main']['batch_size']}
             Model:             {config['main']['model']}

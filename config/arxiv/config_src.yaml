@@ -9,20 +9,19 @@ main:
   patience: 5
   stop_cond: "mIoU"
   cv: 3
+  jb_dir: "/mnt/ssdwdc/chemotherapy_strage/dataset/"
   result_dir: "/mnt/ssdwdc/chemotherapy_strage/result/"
   
 dataset:
-  imgs_dir: "/mnt/ssdwdc/chemotherapy_strage/mnt2/"
+  imgs_dir: "/mnt/ssdwdc/chemotherapy_strage/mnt2_LEV0/"
 
 test:
   weight_dir: "/mnt/ssdwdc/chemotherapy_strage/result/checkpoints/[0, 1, 2]/"
   weight_names:
-    - "cv0_epoch11_best_val_mIoU.pth"
-    - "cv1_epoch21_best_val_mIoU.pth"
-    - "cv2_epoch7_best_val_mIoU.pth"
+    - "cv0_epoch9_best_val_mIoU.pth"
+    - "cv1_epoch16_best_val_mIoU.pth"
+    - "cv2_epoch13_best_val_mIoU.pth"
   output_dir: "/mnt/ssdwdc/chemotherapy_strage/result/test/"
-  jb_dir: "/mnt/ssdwdc/chemotherapy_strage/dataset/"
   target_data: "test"
   get_miss: False
   likelihood: True
-  cv_num: 0

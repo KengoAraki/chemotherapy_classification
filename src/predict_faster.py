@@ -11,12 +11,12 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from natsort import natsorted
 from PIL import Image
+from openslide import OpenSlide
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from src.dataset import WSI
 from src.util import fix_seed
 from src.model import build_model
-from preprocess.openslide_wsi import OpenSlideWSI
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -42,24 +42,19 @@ class makePredmap(object):
         self.size = (self.length, self.length)
         self.stride = 256
 
-    def make_output_dir(self, main_dir, wsi_name):
-        output_dir = f"{main_dir}{wsi_name}/"
-        os.makedirs(output_dir) if os.path.isdir(output_dir) is False else None
-        return output_dir
-
     def get_wsi_name(self):
         return self.wsi_name
 
     def num_to_color(self, num):
         if isinstance(num, list):
             num = num[0]
-    
+
         if num == 0:
             color = (200, 200, 200)
         elif num == 1:
-            color = (0, 65, 255)
-        elif num == 2:
             color = (255, 40, 0)
+        elif num == 2:
+            color = (0, 65, 255)
         elif num == 3:
             color = (53, 161, 107)
         elif num == 4:
@@ -70,43 +65,37 @@ class makePredmap(object):
             sys.exit("invalid number:" + str(num))
         return color
 
-    # 予測したパッチの着色
-    def color_patch(self, y_classes, test_data_list, output_dir):
-        for y, test_data in zip(y_classes, test_data_list):
-            y = y.argmax(dim=0).numpy().copy()  # yはargmax前のsoftmax出力
-            filename, _ = os.path.splitext(os.path.basename(test_data))
-            canvas = np.zeros((256, 256, 3))
-            for cl in range(len(self.classes)):
-                canvas[y == cl] = self.num_to_color(self.classes[cl])
-            canvas = Image.fromarray(np.uint8(canvas))
-            canvas.save(output_dir + filename + ".png", "PNG", quality=100, optimize=True)
+    # 予測結果からセグメンテーション画像を生成
+    def preds_to_image(
+        self,
+        preds: list,
+        output_dir: str,
+        output_name: str,
+        cnt=0,
+    ):
+        wsi = OpenSlide(self.wsi_path)
 
-    # 予測したパッチをlikelihood-map用に着色
-    def color_likelihood_patch(self, y_classes, test_data_list, output_dir):
-        for y, test_data in zip(y_classes, test_data_list):
-            y = y.numpy().copy()
-            filename, _ = os.path.splitext(os.path.basename(test_data))
-            for cl in range(len(self.classes)):
-                color = self.num_to_color(self.classes[cl])
-                patch_color = np.uint8(np.multiply(y[cl], color))
-                canvas = np.full((256, 256, 3), patch_color)
-                canvas = Image.fromarray(canvas)
-                canvas.save(f"{output_dir}{filename}_cl{cl}.png", "PNG", quality=100, optimize=True)
+        width = wsi.level_dimensions[self.level][0]
+        height = wsi.level_dimensions[self.level][1]
+        row_max = int((width - self.size[0]) / self.stride + 1)
+        column_max = int((height - self.size[1]) / self.stride + 1)
 
-    # パッチの結合
-    def merge_patch(self, patch_dir, output_dir, suffix=None):
-        img = OpenSlideWSI(self.wsi_path)
-        img.patch_to_image(
-            self.resized_size,
-            self.level,
-            self.size,
-            self.stride,
-            input_dir=patch_dir,
-            output_dir=output_dir,
-            output_name=self.wsi_name,
-            suffix=suffix,
-            cnt=0
-        )
+        canvas_shape = (
+            self.resized_size[1] * column_max,
+            self.resized_size[0] * row_max, 3)
+        canvas_nd = np.full(canvas_shape, 255, dtype=np.uint8)
+
+        for column in range(column_max):
+            for row in range(row_max):
+                y = preds[cnt].argmax(dim=0).numpy().copy()
+                y_color = self.num_to_color(y)
+
+                canvas_nd[
+                    column * self.resized_size[1]:(column + 1) * self.resized_size[1],
+                    row * self.resized_size[0]:(row + 1) * self.resized_size[0], :] = y_color
+                cnt = cnt + 1
+        canvas = Image.fromarray(canvas_nd)
+        canvas.save(output_dir + output_name + ".png", "PNG", quality=100)
 
     # 背景&対象外領域をマスク
     def make_black_mask(self, input_dir, output_dir, suffix=None):
@@ -143,37 +132,23 @@ def main():
 
     import argparse
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--config_path', default='../config/config_src_10_valwsi_LEV0.yaml')
-    parser.add_argument('--main_dir', default='/mnt/ssdwdc/chemotherapy_strage/')
-    parser.add_argument('--patch_dir', default='mnt3_LEV0/')
-    parser.add_argument('--pred_dir', default='mnt4_LEV0/')
+    parser.add_argument('--config_path', default='../config/config_src_LEV0.yaml')
+    parser.add_argument('--main_dir', default='/mnt/ssdsam/chemotherapy_strage/')
+
     args = parser.parse_args()
     config_path = args.config_path
-    main_dir = args.main_dir
-    PATCH_DIR = main_dir + args.patch_dir
-    PRED_DIR = main_dir + args.pred_dir
-
-    # config_path = './config/config_src.yaml'
-    # config_path = '../config/config_src.yaml'
-
-    # config_path = '../config/config_src_10_valwsi_LEV0.yaml'
-    # config_path = '../config/config_src_10_valwsi_LEV1.yaml'
+    MAIN_DIR = args.main_dir
 
     with open(config_path) as file:
         config = yaml.safe_load(file.read())
 
     # ========================================================== #
-    MAIN_DIR = "/mnt/ssdwdc/chemotherapy_strage/"
-
-    WSI_DIR = MAIN_DIR + f"mnt1/origin/"
+    WSI_DIR = MAIN_DIR + "mnt1/origin/"
     MASK_DIR = MAIN_DIR + f"mnt1/mask_cancergrade/overlaid_{config['main']['classes']}/"
-
-    # PATCH_DIR = MAIN_DIR + f"mnt3_LEV0/"
-    # PRED_DIR = MAIN_DIR + f"mnt4_LEV0/"
-    # PATCH_DIR = MAIN_DIR + f"mnt3_LEV1/"
-    # PRED_DIR = MAIN_DIR + f"mnt4_LEV1/"
+    PATCH_DIR = MAIN_DIR + f"mnt3_LEV{config['main']['level']}/"
 
     OUTPUT_DIR = config['main']['result_dir'] + "predmap/"
+    os.makedirs(OUTPUT_DIR) if os.path.isdir(OUTPUT_DIR) is False else None
 
     # predmapを作成済みのWSIはスキップ
     skip_list = [predmap_fname.replace(".png", "") for predmap_fname in os.listdir(OUTPUT_DIR)]
@@ -199,7 +174,7 @@ def main():
         wsis = joblib.load(
             config['dataset']['jb_dir']
             + f"cv{cv_num}_"
-            + f"{config['test']['target_data']}_wsi.jb"
+            + f"{config['test']['target_data']}_{config['main']['facility']}_wsi.jb"
         )
 
         net = build_model(
@@ -217,24 +192,24 @@ def main():
             torch.load(weight_path, map_location=device))
 
         net.eval()
-        for wsi in wsis:
-            logging.info(f"== {wsi} ==")
+        for wsi_name in wsis:
+            logging.info(f"== {wsi_name} ==")
 
             # 既に作成済みのwsiはスキップ
-            tmp_skip_list = [s for s in skip_list if s in wsi]
+            tmp_skip_list = [s for s in skip_list if s in wsi_name]
             if len(tmp_skip_list) > 0:
-                print(f"skip: {wsi}")
+                print(f"skip: {wsi_name}")
                 continue
 
             PMAP = makePredmap(
-                wsi_name=wsi,
+                wsi_name=wsi_name,
                 classes=config['main']['classes'],
                 level=config['main']['level'],
                 wsi_dir=WSI_DIR,
                 overlaid_mask_dir=MASK_DIR
             )
 
-            patch_list = natsorted(glob.glob(PATCH_DIR + f"/{wsi}/*.png", recursive=False))
+            patch_list = natsorted(glob.glob(PATCH_DIR + f"/{wsi_name}/*.png", recursive=False))
 
             test_data = WSI(
                 patch_list,
@@ -264,34 +239,17 @@ def main():
 
                     pbar.update()
 
-            # 予測結果の着色パッチを作成
-            logging.info("make color patch...")
-            pred_out_dir = PMAP.make_output_dir(PRED_DIR, wsi)
-            PMAP.color_patch(all_preds, patch_list, pred_out_dir)
-
-            # 着色パッチを結合
-            logging.info("merge color patch...")
-            PMAP.merge_patch(pred_out_dir, OUTPUT_DIR)
+            # 予測結果からセグメンテーション画像を生成
+            logging.info("make segmented image from prediction results ...")
+            PMAP.preds_to_image(
+                preds=all_preds,
+                output_dir=OUTPUT_DIR,
+                output_name=wsi_name
+            )
 
             # 背景&対象外領域をマスク
             logging.info("mask bg & other classes area...")
             PMAP.make_black_mask(OUTPUT_DIR, OUTPUT_DIR)
-
-            # likelihood mapの作成
-            if config['test']['likelihood']:
-                # 予測結果の着色パッチを作成
-                logging.info("make color patch (likelihood)...")
-                pred_out_dir = PMAP.make_output_dir(PRED_DIR, wsi)
-                PMAP.color_likelihood_patch(all_preds, patch_list, pred_out_dir)
-
-                for cl in range(len(config['main']['classes'])):
-                    # 着色パッチを結合
-                    logging.info("merge color patch (likelihood)...")
-                    PMAP.merge_patch(pred_out_dir, OUTPUT_DIR, suffix=f"_cl{cl}")
-
-                    # 背景&対象外領域をマスク
-                    logging.info("mask bg & other classes area (likelihood)...")
-                    PMAP.make_black_mask(OUTPUT_DIR, OUTPUT_DIR, suffix=f"_cl{cl}")
 
 
 if __name__ == "__main__":
