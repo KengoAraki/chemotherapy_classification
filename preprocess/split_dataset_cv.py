@@ -6,6 +6,7 @@ from natsort import natsorted
 import re
 import random
 import copy
+import math
 from sklearn.model_selection import train_test_split
 
 '''
@@ -170,7 +171,7 @@ def get_sub_classes(classes):
             sub_cl_list.append(cl)
     return sub_cl_list
 
-def get_files(wsis, classes):
+def get_files(wsis: list, imgs_dir: str, classes: list):
     re_pattern = re.compile('|'.join([f"/{i}/" for i in get_sub_classes(classes)]))
 
     files_list = []
@@ -258,9 +259,9 @@ def save_dataset3(
         joblib.dump(valid_wsis, output_dir + f"cv{cv_num}_valid_wsi.jb", compress=3)
         joblib.dump(test_wsis, output_dir + f"cv{cv_num}_test_wsi.jb", compress=3)
 
-        train_files = get_files(train_wsis, classes)
-        valid_files = get_files(valid_wsis, classes)
-        test_files = get_files(test_wsis, classes)
+        train_files = get_files(train_wsis, imgs_dir, classes)
+        valid_files = get_files(valid_wsis, imgs_dir, classes)
+        test_files = get_files(test_wsis, imgs_dir, classes)
 
         logging.info(f"[patch]  train: {len(train_files)}, valid: {len(valid_files)}, test: {len(test_files)}")
 
@@ -345,9 +346,9 @@ def save_dataset4(
         joblib.dump(valid_wsis, output_dir + f"cv{cv_num}_valid_wsi.jb", compress=3)
         joblib.dump(test_wsis, output_dir + f"cv{cv_num}_test_wsi.jb", compress=3)
 
-        train_files = get_files(train_wsis, classes)
-        valid_files = get_files(valid_wsis, classes)
-        test_files = get_files(test_wsis, classes)
+        train_files = get_files(train_wsis, imgs_dir, classes)
+        valid_files = get_files(valid_wsis, imgs_dir, classes)
+        test_files = get_files(test_wsis, imgs_dir, classes)
 
         logging.info(f"[patch]  train: {len(train_files)}, valid: {len(valid_files)}, test: {len(test_files)}")
 
@@ -379,43 +380,111 @@ def save_dataset4(
                 f.write(f"{test_wsis[i]}\n")
 
 
+def save_dataset_chemo_wsi(
+    overlaid_dir: str = "/mnt/ssdsam/chemotherapy_strage/mnt1/mask_cancergrade/overlaid_[0, 1, 2]/",
+    output_dir: str = "/mnt/ssdsam/chemotherapy_strage/dataset/202112_chemotherapy/",
+    cv: int = 3,
+    val_ratio: float=0.2,
+    random_seed: int = 0,
+):
+    files = os.listdir(overlaid_dir)
+    files = [f for f in files if os.path.isfile(os.path.join(overlaid_dir, f))]
+    # 同じ症例内の番号を削除
+    wsis = [f[:f.find('_')][:9] for f in files]
+    # 重複を削除 
+    wsis = natsorted(list(set(wsis)))
+    random.seed(random_seed)
+    random.shuffle(wsis)
+    n = math.ceil(len(wsis) / cv)
+    wsi_fold = [wsis[idx:idx + n] for idx in range(0, len(wsis), n)]
+
+    for cv_num in range(cv):
+        logging.info(f"===== CV{cv_num} =====")
+
+        wsi_fold_tmp = copy.deepcopy(wsi_fold)
+        test_wsis_tmp = wsi_fold_tmp.pop(cv_num)
+        trvl_wsis_tmp = sum(wsi_fold_tmp, [])
+
+        train_wsis_tmp, valid_wsis_tmp = train_test_split(
+            trvl_wsis_tmp, test_size=val_ratio, random_state=random_seed)
+
+        train_wsis, valid_wsis, test_wsis = [], [], []
+        for file in files:
+            f = file.replace('_overlaid.tif', '')
+            for wsi in train_wsis_tmp:
+                if wsi in f:
+                    train_wsis.append(f)
+            for wsi in valid_wsis_tmp:
+                if wsi in f:
+                    valid_wsis.append(f)
+            for wsi in test_wsis_tmp:
+                if wsi in f:
+                    test_wsis.append(f)
+        
+        train_wsis = natsorted(train_wsis)
+        valid_wsis = natsorted(valid_wsis)
+        test_wsis = natsorted(test_wsis)
+
+        logging.info(f"[wsi]  train: {len(train_wsis)}, valid: {len(valid_wsis)}, test: {len(test_wsis)}")
+
+        # WSI割当のリストを保存
+        joblib.dump(train_wsis, output_dir + f"cv{cv_num}_train_wsi.jb", compress=3)
+        joblib.dump(valid_wsis, output_dir + f"cv{cv_num}_valid_wsi.jb", compress=3)
+        joblib.dump(test_wsis, output_dir + f"cv{cv_num}_test_wsi.jb", compress=3)
+
+        with open(output_dir + f"cv{cv_num}_dataset.txt", mode='w') as f:
+            f.write(
+                "== [wsi] ==\n"
+                + f"train: {len(train_wsis)}, valid: {len(valid_wsis)}, test: {len(test_wsis)}"
+                + "\n==============\n\n")
+
+            f.write("== train (wsi) ==\n")
+            for i in range(len(train_wsis)):
+                f.write(f"{train_wsis[i]}\n")
+
+            f.write("\n== valid (wsi) ==\n")
+            for i in range(len(valid_wsis)):
+                f.write(f"{valid_wsis[i]}\n")
+
+            f.write("\n== test (wsi) ==\n")
+            for i in range(len(test_wsis)):
+                f.write(f"{test_wsis[i]}\n")
+
+
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
         format='%(levelname)s: %(message)s'
     )
 
-    imgs_dir = "/mnt/ssdwdc/chemotherapy_strage/mnt2_LEV1/"
-    output_dir = "/mnt/ssdwdc/chemotherapy_strage/dataset/"
+    # imgs_dir = "/mnt/ssdsam/chemotherapy_strage/mnt2_LEV1/"
+    output_dir = "/mnt/ssdsam/chemotherapy_strage/dataset/202112_chemotherapy/"
 
     # wsi_fold = [
-    #     ["H19-12183_8", "H19-12183_9"],
-    #     ["H19-12183_10", "H19-12183_11"],
-    #     ["H19-12183_13", "H19-12183_14"],
+    #     ["H19-12183_7", "H19-12183_8", "H19-12183_9", "H19-12183_10", "H19-12183_11", "H19-12183_13", "H19-00019_3", "H19-00019_4",  "H18-08754_9", "H18-08754_11", "H18-03929_4", "H18-03929_5"],
+    #     ["H19-06473_2", "H19-06473_3", "H19-06473_4", "H19-06473_6", "H18-10055_5", "H18-10055_6", "H18-08203_8", "H18-08203_9", "H19-06584_3", "H19-06584_5", "H19-06584_6",],
+    #     ["H19-06343_3", "H19-06343_4", "H19-06343_5", "H18-09611_8", "H18-09611_18",  "H18-05230_5", "H18-05230_8", "H19-09154_5", "H19-09154_6", "H19-09154_7", "H19-09154_8",],
     # ]
-
-    # wsi_fold = [
-    #     ["H19-12183_10", "H19-12183_9", "H19-12183_11", "H19-12183_13", "H19-12183_7", "H19-12183_8", "H19-12183_14"],
-    #     ["H19-06343_4", "H19-06343_5", "H19-06584_3", "H19-06584_5", "H19-06584_6"],
-    #     ["H19-06473_2", "H19-06473_3", "H19-06473_4", "H19-06473_6"],
-    # ]
-    
-    # wsi_fold_mixcases = [
-    #     ["H19-12183_10", "H19-12183_9", "H19-12183_11", "H19-12183_13", "H19-06343_4", "H19-06343_5", "H19-06473_2", "H19-06473_3", "H19-06473_4", "H19-06473_6"],
-    #     ["H19-12183_7", "H19-12183_8", "H19-12183_14", "H19-06584_3", "H19-06584_5", "H19-06584_6"],
-    # ]
-
-    wsi_fold = [
-        ["H19-12183_7", "H19-12183_8", "H19-12183_9", "H19-12183_10", "H19-12183_11", "H19-12183_13", "H19-00019_3", "H19-00019_4",  "H18-08754_9", "H18-08754_11", "H18-03929_4", "H18-03929_5"],
-        ["H19-06473_2", "H19-06473_3", "H19-06473_4", "H19-06473_6", "H18-10055_5", "H18-10055_6", "H18-08203_8", "H18-08203_9", "H19-06584_3", "H19-06584_5", "H19-06584_6",],
-        ["H19-06343_3", "H19-06343_4", "H19-06343_5", "H18-09611_8", "H18-09611_18",  "H18-05230_5", "H18-05230_8", "H19-09154_5", "H19-09154_6", "H19-09154_7", "H19-09154_8",],
-    ]
 
     cv = 3
     classes = [0, 1, 2]
     val_ratio = 0.2
     # save_dataset2(imgs_dir, output_dir, wsi_fold=wsi_fold, classes=classes, cv=cv, val_ratio=val_ratio)
 
-    save_dataset3(imgs_dir, output_dir, wsi_fold=wsi_fold, classes=classes, cv=cv)
+    # save_dataset3(imgs_dir, output_dir, wsi_fold=wsi_fold, classes=classes, cv=cv)
 
     # save_dataset4(imgs_dir, output_dir, wsi_fold=wsi_fold_mixcases, classes=classes, cv=cv, val_ratio=val_ratio)
+
+    overlaid_dir = "/mnt/ssdsam/chemotherapy_strage/mnt1/mask_cancergrade/overlaid_[0, 1, 2]/"
+    save_dataset_chemo_wsi(overlaid_dir=overlaid_dir, output_dir=output_dir, cv=cv, val_ratio=val_ratio)
+    # files = os.listdir(overlaid_dir)
+    # files = [f for f in files if os.path.isfile(os.path.join(overlaid_dir, f))]
+    # # 同じ症例内の番号を削除
+    # wsis = [f[:f.find('_')][:9] for f in files]
+    # # 重複を削除 
+    # wsis = natsorted(list(set(wsis)))
+    # random.seed(0)
+    # random.shuffle(wsis)
+    # n = math.ceil(len(wsis) / cv)
+    # wsi_fold = [wsis[idx:idx + n] for idx in range(0, len(wsis), n)]
+    # print(len(wsis))
