@@ -88,27 +88,9 @@ class OpenSlideWSI(openslide.OpenSlide):
         assert isinstance(bb, dict), "bb(bounding-box) must be dict type"
         obj_name = bb['name']
 
-        # FIXME: fix here! === #
-        # # bbをlevel用に変換（bbはbg_mask_level05における座標のため）
-        # bx_wsi = bb['x'] * (2 ** (default_level - level))  # bounding-boxの左上x座標(level)
-        # by_wsi = bb['y'] * (2 ** (default_level - level))  # bounding-boxの左上y座標(level)
-        # bw_wsi = bb['w'] * (2 ** (default_level - level))  # bounding-boxの横幅(level)
-        # bh_wsi = bb['h'] * (2 ** (default_level - level))  # bounding-boxの縦幅(level)
-
-        # width = self.level_dimensions[level][0]  # WSIの横幅(level)
-        # height = self.level_dimensions[level][1]  # WSIの縦幅(level)
-        # row_max = int((bw_wsi - size[0]) / stride + 1)
-        # column_max = int((bh_wsi - size[1]) / stride + 1)
-
-        # # 細胞領域のマスク画像，背景領域のマスク画像の１ピクセルが特定のレベルのWSIの何ピクセルに相当するか計算
-        # stride_rate = stride / 2 ** (default_level - level)
-        # width_rate = size[0] / 2 ** (default_level - level)
-        # height_rate = size[1] / 2 ** (default_level - level)
-        # ===================== #
-
         # bbのx, yをlevel0用に変換（bbはbg_mask_level05における座標のため）
         bx_wsi_0 = bb['x'] * (2 ** default_level)  # bounding-boxの左上x座標(level0)
-        by_wsi_0 = bb['y'] * (2 ** default_level) # bounding-boxの左上y座標(level0)
+        by_wsi_0 = bb['y'] * (2 ** default_level)  # bounding-boxの左上y座標(level0)
 
         # bbのw, hを特定のlevel用に変換
         bw_wsi = bb['w'] * (2 ** (default_level - level))  # bounding-boxの横幅(level)
@@ -382,27 +364,36 @@ class OpenSlideWSI(openslide.OpenSlide):
     #     return cnt
 
 
-def main():
-    parent_dir = "/mnt/ssdwdc/chemotherapy_strage/mnt1/"
-    p_parent_dir = pathlib.Path(parent_dir)
-    output_main_dir = parent_dir.replace("mnt1/", "mnt2_LEV1/")
-
-    # ------------------ #
-    DEFAULT_LEVEL = 5
-    LEVEL = 1
-    SIZE = (256, 256)
-    STRIDE = 256
-    CONTOURS_TH = 1
-    CLASSES = [0, 1, 2]
-    # ------------------ #
+def main(
+    PARENT_DIR: str = "/mnt/ssdsam/chemotherapy_strage/mnt1/",
+    DEFAULT_LEVEL: int = 5,
+    LEVEL: int = 0,
+    SIZE: tuple = (256, 256),
+    STRIDE: int = 256,
+    CONTOURS_TH: int = 1,
+    CLASSES: list = [0, 1, 2],
+):
+    p_parent_dir = pathlib.Path(PARENT_DIR)
+    output_main_dir = PARENT_DIR.replace("mnt1/", f"mnt2_LEV{LEVEL}/")
 
     wsi_list = natsorted([wsi_path for wsi_path in (p_parent_dir / "origin/").glob("*.ndpi")])
 
+    skip_list = [mnt2_indir.replace("_000", "") for mnt2_indir in os.listdir(str(output_main_dir + "0/"))]
+    skip_list += [mnt2_indir.replace("_000", "") for mnt2_indir in os.listdir(str(output_main_dir + "1/"))]
+    skip_list += [mnt2_indir.replace("_000", "") for mnt2_indir in os.listdir(str(output_main_dir + "2/"))]
+    skip_list = list(set(skip_list))
+    print(len(skip_list))
+
     for wsi_path in wsi_list:
         wsi_path = str(wsi_path)
-        bg_mask_dir = parent_dir + "mask_bg/"
-        semantic_mask_dir = parent_dir + \
+        bg_mask_dir = PARENT_DIR + "mask_bg/"
+        semantic_mask_dir = PARENT_DIR + \
             f"mask_cancergrade_gray/overlaid_{CLASSES}/"
+
+        tmp_skip_list = [s for s in skip_list if s in wsi_path]
+        if len(tmp_skip_list) > 0:
+            print(f"skip: {wsi_path}")
+            continue
 
         wsi = OpenSlideWSI(
             wsi_path,
@@ -428,20 +419,21 @@ def main():
 
 
 # 予測画像用のパッチ切り取り
-def main_for_predmap():
-    parent_dir = "/mnt/ssdwdc/chemotherapy_strage/mnt1/"
-    p_parent_dir = pathlib.Path(parent_dir)
-    output_main_dir = parent_dir.replace("mnt1/", "mnt3/")
-
-    # ------------------ #
-    DEFAULT_LEVEL = 5
-    LEVEL = 0
-    SIZE = (256, 256)
-    STRIDE = 256
-    # ------------------ #
+def main_for_predmap(
+    PARENT_DIR: str,
+    DEFAULT_LEVEL: int = 5,
+    LEVEL: int = 0,
+    SIZE: tuple = (256, 256),
+    STRIDE: int = 256,
+):
+    p_parent_dir = pathlib.Path(PARENT_DIR)
+    output_main_dir = PARENT_DIR.replace("mnt1/", f"mnt3_LEV{LEVEL}/")
 
     wsi_list = natsorted([wsi_path for wsi_path in (p_parent_dir / "origin/").glob("*.ndpi")])
-    skip_list = ["H19-12183_8", "H19-12183_9", "H19-12183_10", "H19-12183_11", "H19-12183_13", "H19-12183_14"]
+
+    # mnt3に存在するWSIはスキップ
+    skip_list = [mnt2_indir for mnt2_indir in os.listdir(str(output_main_dir))]
+    skip_list = list(set(skip_list))
 
     for wsi_path in wsi_list:
         wsi_path = str(wsi_path)
@@ -461,5 +453,24 @@ def main_for_predmap():
 
 
 if __name__ == "__main__":
-    main()
-    # main_for_predmap()
+    PARENT_DIR = "/mnt/ssdsam/chemotherapy_strage/mnt1/"
+    LEVEL = 1
+    CLASSES = [0, 1, 2]
+
+    main(
+        PARENT_DIR=PARENT_DIR,
+        LEVEL=LEVEL,
+        CLASSES=CLASSES
+    )
+    main(
+        PARENT_DIR=PARENT_DIR,
+        LEVEL=0,
+        CLASSES=CLASSES
+    )
+    main(
+        PARENT_DIR=PARENT_DIR,
+        LEVEL=1,
+        CLASSES=CLASSES
+    )
+
+    # main_for_predmap(PARENT_DIR=PARENT_DIR, LEVEL=LEVEL)

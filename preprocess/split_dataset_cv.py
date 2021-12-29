@@ -5,6 +5,7 @@ import glob
 from natsort import natsorted
 import re
 import random
+import copy
 from sklearn.model_selection import train_test_split
 
 '''
@@ -157,48 +158,42 @@ def save_dataset(imgs_dir: str, output_dir: str, cv: int=5):
                 f.write(f"{test_wsis[i]}\n")
 
 
-# chemotherapy dataset用
+def get_sub_classes(classes):
+    # classesからsub-classを取得
+    sub_cl_list = []
+    for idx in range(len(classes)):
+        cl = classes[idx]
+        if isinstance(cl, list):
+            for sub_cl in cl:
+                sub_cl_list.append(sub_cl)
+        else:
+            sub_cl_list.append(cl)
+    return sub_cl_list
+
+def get_files(wsis, classes):
+    re_pattern = re.compile('|'.join([f"/{i}/" for i in get_sub_classes(classes)]))
+
+    files_list = []
+    for wsi in wsis:
+        files_list.extend(
+            [
+                p for p in glob.glob(imgs_dir + f"*/{wsi}_*/*.png", recursive=True)
+                if bool(re_pattern.search(p))
+            ]
+        )
+    return files_list
+
+
+# chemotherapy dataset用 (train用WSIのパッチをランダムにvalidationに割当)
 def save_dataset2(
     imgs_dir: str,
     output_dir: str,
+    wsi_fold: list,
     classes: list=[0, 1, 2],
     cv: int=3,
     val_ratio: float=0.2,
     random_seed: int=0,
 ):
-    import copy
-
-    def get_sub_classes(classes):
-        # classesからsub-classを取得
-        sub_cl_list = []
-        for idx in range(len(classes)):
-            cl = classes[idx]
-            if isinstance(cl, list):
-                for sub_cl in cl:
-                    sub_cl_list.append(sub_cl)
-            else:
-                sub_cl_list.append(cl)
-        return sub_cl_list
-
-    def get_files(wsis, classes):
-        re_pattern = re.compile('|'.join([f"/{i}/" for i in get_sub_classes(classes)]))
-
-        files_list = []
-        for wsi in wsis:
-            files_list.extend(
-                [
-                    p for p in glob.glob(imgs_dir + f"*/{wsi}_*/*.png", recursive=True)
-                    if bool(re_pattern.search(p))
-                ]
-            )
-        return files_list
-
-    wsi_fold = [
-        ["H19-12183_8", "H19-12183_9"],
-        ["H19-12183_10", "H19-12183_11"],
-        ["H19-12183_13", "H19-12183_14"],
-    ]
-
     for cv_num in range(cv):
         logging.info(f"===== CV{cv_num} =====")
         wsi_fold_tmp = copy.deepcopy(wsi_fold)
@@ -241,16 +236,186 @@ def save_dataset2(
                 f.write(f"{test_wsis[i]}\n")
 
 
+# chemotherapy dataset用 (パッチ切り取り前に，WSIをtrain/validationに割り当て)
+def save_dataset3(
+    imgs_dir: str,
+    output_dir: str,
+    wsi_fold: list,
+    classes: list=[0, 1, 2],
+    cv: int=3,
+    random_seed: int=0,
+):
+    for cv_num in range(cv):
+        logging.info(f"===== CV{cv_num} =====")
+        wsi_fold_tmp = copy.deepcopy(wsi_fold)
+        test_wsis = wsi_fold_tmp.pop(cv_num)
+        valid_wsis = [fold.pop(0) for fold in wsi_fold_tmp]
+        train_wsis = [wsi_name for fold in wsi_fold_tmp for wsi_name in fold]
+        logging.info(f"[wsi]  train: {len(train_wsis)}, valid: {len(valid_wsis)}, test: {len(test_wsis)}")
+
+        # WSI割当のリストを保存
+        joblib.dump(train_wsis, output_dir + f"cv{cv_num}_train_wsi.jb", compress=3)
+        joblib.dump(valid_wsis, output_dir + f"cv{cv_num}_valid_wsi.jb", compress=3)
+        joblib.dump(test_wsis, output_dir + f"cv{cv_num}_test_wsi.jb", compress=3)
+
+        train_files = get_files(train_wsis, classes)
+        valid_files = get_files(valid_wsis, classes)
+        test_files = get_files(test_wsis, classes)
+
+        logging.info(f"[patch]  train: {len(train_files)}, valid: {len(valid_files)}, test: {len(test_files)}")
+
+        # パッチ割当のリストを保存
+        joblib.dump(train_files, output_dir + f"cv{cv_num}_train.jb", compress=3)
+        joblib.dump(valid_files, output_dir + f"cv{cv_num}_valid.jb", compress=3)
+        joblib.dump(test_files, output_dir + f"cv{cv_num}_test.jb", compress=3)
+
+        with open(output_dir + f"cv{cv_num}_dataset.txt", mode='w') as f:
+            f.write(
+                "== [wsi] ==\n"
+                + f"train: {len(train_wsis)}, valid: {len(valid_wsis)}, test: {len(test_wsis)}"
+                + "\n==============\n\n")
+            f.write(
+                "== [patch] ==\n"
+                + f"train: {len(train_files)}, valid: {len(valid_files)}, test: {len(test_files)}"
+                + "\n==============\n\n")
+
+            f.write("== train (wsi) ==\n")
+            for i in range(len(train_wsis)):
+                f.write(f"{train_wsis[i]}\n")
+
+            f.write("\n== valid (wsi) ==\n")
+            for i in range(len(valid_wsis)):
+                f.write(f"{valid_wsis[i]}\n")
+
+            f.write("\n== test (wsi) ==\n")
+            for i in range(len(test_wsis)):
+                f.write(f"{test_wsis[i]}\n")
+
+
+# chemotherapy dataset用 (症例関係なくランダムにWSIをtrain/validation/testに割り当て)
+def save_dataset4(
+    imgs_dir: str,
+    output_dir: str,
+    wsi_fold: list,
+    classes: list=[0, 1, 2],
+    cv: int=3,
+    val_ratio: float=0.2,
+    random_seed: int=0,
+):
+    import numpy as np
+    random.seed(random_seed)
+    fold_idxs = [[], []]
+    fold_idxs[0] = [i for i in range(len(wsi_fold[0]))]
+    fold_idxs[1] = [i for i in range(len(wsi_fold[1]))]
+
+    total_num = 0
+    new_wsi_fold = [[], []]
+    for j, fold in enumerate(wsi_fold):
+        total_num += len(fold)
+        random.shuffle(fold)
+
+        fold_idxs[j] = [array.tolist() for array in np.array_split(fold_idxs[j], cv)]
+        for idxs in fold_idxs[j]:
+            new_wsi_fold[j].append([fold[idx] for idx in idxs])
+
+    for cv_num in range(cv):
+        logging.info(f"===== CV{cv_num} =====")
+        wsi_fold_tmp = copy.deepcopy(new_wsi_fold)
+
+        test_wsis = wsi_fold_tmp[0].pop(cv_num)
+        test_wsis += wsi_fold_tmp[1].pop(cv_num)
+
+        wsi_fold_tmp0 = [wsi_name for fold in wsi_fold_tmp[0] for wsi_name in fold]
+        wsi_fold_tmp1 = [wsi_name for fold in wsi_fold_tmp[1] for wsi_name in fold]
+        random.shuffle(wsi_fold_tmp0)
+        random.shuffle(wsi_fold_tmp1)
+
+        train_wsis0, valid_wsis0 = train_test_split(
+            wsi_fold_tmp0, test_size=val_ratio, random_state=random_seed)
+        train_wsis1, valid_wsis1 = train_test_split(
+            wsi_fold_tmp1, test_size=val_ratio, random_state=random_seed)
+
+        train_wsis = train_wsis0 + train_wsis1
+        valid_wsis = valid_wsis0 + valid_wsis1
+
+        logging.info(f"[wsi]  train: {len(train_wsis)}, valid: {len(valid_wsis)}, test: {len(test_wsis)}")
+
+        # WSI割当のリストを保存
+        joblib.dump(train_wsis, output_dir + f"cv{cv_num}_train_wsi.jb", compress=3)
+        joblib.dump(valid_wsis, output_dir + f"cv{cv_num}_valid_wsi.jb", compress=3)
+        joblib.dump(test_wsis, output_dir + f"cv{cv_num}_test_wsi.jb", compress=3)
+
+        train_files = get_files(train_wsis, classes)
+        valid_files = get_files(valid_wsis, classes)
+        test_files = get_files(test_wsis, classes)
+
+        logging.info(f"[patch]  train: {len(train_files)}, valid: {len(valid_files)}, test: {len(test_files)}")
+
+        # パッチ割当のリストを保存
+        joblib.dump(train_files, output_dir + f"cv{cv_num}_train.jb", compress=3)
+        joblib.dump(valid_files, output_dir + f"cv{cv_num}_valid.jb", compress=3)
+        joblib.dump(test_files, output_dir + f"cv{cv_num}_test.jb", compress=3)
+
+        with open(output_dir + f"cv{cv_num}_dataset.txt", mode='w') as f:
+            f.write(
+                "== [wsi] ==\n"
+                + f"train: {len(train_wsis)}, valid: {len(valid_wsis)}, test: {len(test_wsis)}"
+                + "\n==============\n\n")
+            f.write(
+                "== [patch] ==\n"
+                + f"train: {len(train_files)}, valid: {len(valid_files)}, test: {len(test_files)}"
+                + "\n==============\n\n")
+
+            f.write("== train (wsi) ==\n")
+            for i in range(len(train_wsis)):
+                f.write(f"{train_wsis[i]}\n")
+
+            f.write("\n== valid (wsi) ==\n")
+            for i in range(len(valid_wsis)):
+                f.write(f"{valid_wsis[i]}\n")
+
+            f.write("\n== test (wsi) ==\n")
+            for i in range(len(test_wsis)):
+                f.write(f"{test_wsis[i]}\n")
+
+
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
         format='%(levelname)s: %(message)s'
     )
 
-    imgs_dir = "/mnt/ssdwdc/chemotherapy_strage/mnt2/"
+    imgs_dir = "/mnt/ssdwdc/chemotherapy_strage/mnt2_LEV1/"
     output_dir = "/mnt/ssdwdc/chemotherapy_strage/dataset/"
+
+    # wsi_fold = [
+    #     ["H19-12183_8", "H19-12183_9"],
+    #     ["H19-12183_10", "H19-12183_11"],
+    #     ["H19-12183_13", "H19-12183_14"],
+    # ]
+
+    # wsi_fold = [
+    #     ["H19-12183_10", "H19-12183_9", "H19-12183_11", "H19-12183_13", "H19-12183_7", "H19-12183_8", "H19-12183_14"],
+    #     ["H19-06343_4", "H19-06343_5", "H19-06584_3", "H19-06584_5", "H19-06584_6"],
+    #     ["H19-06473_2", "H19-06473_3", "H19-06473_4", "H19-06473_6"],
+    # ]
+    
+    # wsi_fold_mixcases = [
+    #     ["H19-12183_10", "H19-12183_9", "H19-12183_11", "H19-12183_13", "H19-06343_4", "H19-06343_5", "H19-06473_2", "H19-06473_3", "H19-06473_4", "H19-06473_6"],
+    #     ["H19-12183_7", "H19-12183_8", "H19-12183_14", "H19-06584_3", "H19-06584_5", "H19-06584_6"],
+    # ]
+
+    wsi_fold = [
+        ["H19-12183_7", "H19-12183_8", "H19-12183_9", "H19-12183_10", "H19-12183_11", "H19-12183_13", "H19-00019_3", "H19-00019_4",  "H18-08754_9", "H18-08754_11", "H18-03929_4", "H18-03929_5"],
+        ["H19-06473_2", "H19-06473_3", "H19-06473_4", "H19-06473_6", "H18-10055_5", "H18-10055_6", "H18-08203_8", "H18-08203_9", "H19-06584_3", "H19-06584_5", "H19-06584_6",],
+        ["H19-06343_3", "H19-06343_4", "H19-06343_5", "H18-09611_8", "H18-09611_18",  "H18-05230_5", "H18-05230_8", "H19-09154_5", "H19-09154_6", "H19-09154_7", "H19-09154_8",],
+    ]
 
     cv = 3
     classes = [0, 1, 2]
     val_ratio = 0.2
-    save_dataset2(imgs_dir, output_dir, classes=classes, cv=cv, val_ratio=val_ratio)
+    # save_dataset2(imgs_dir, output_dir, wsi_fold=wsi_fold, classes=classes, cv=cv, val_ratio=val_ratio)
+
+    save_dataset3(imgs_dir, output_dir, wsi_fold=wsi_fold, classes=classes, cv=cv)
+
+    # save_dataset4(imgs_dir, output_dir, wsi_fold=wsi_fold_mixcases, classes=classes, cv=cv, val_ratio=val_ratio)
