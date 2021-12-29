@@ -3,10 +3,10 @@ import os
 import sys
 import yaml
 import joblib
-
 import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn
+import numpy as np
 import matplotlib.pyplot as plt
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -22,7 +22,10 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 if __name__ == "__main__":
     fix_seed(0)
     # config_path = './config/config_src.yaml'
-    config_path = '../config/config_src.yaml'
+    # config_path = '../config/config_src.yaml'
+
+    # config_path = '../config/config_src_10_valwsi_LEV0.yaml'
+    config_path = '../config/config_src_10_valwsi_LEV1.yaml'
 
     with open(config_path) as file:
         config = yaml.safe_load(file.read())
@@ -67,7 +70,7 @@ if __name__ == "__main__":
             torch.load(weight_path, map_location=device))
 
         files = joblib.load(
-            config['test']['jb_dir']
+            config['main']['jb_dir']
             + f"cv{cv_num}_"
             + f"{config['test']['target_data']}.jb"
         )
@@ -87,7 +90,9 @@ if __name__ == "__main__":
             get_miss=config['test']['get_miss'],
             save_dir=config['test']['output_dir'])
 
-        logging.info(f"\n cm ({config['test']['target_data']}):\n{cm}\n")
+        logging.info(
+            f"\n cm ({config['test']['target_data']}):\n{np.array2string(cm, separator=',')}\n"
+        )
         val_metrics = eval_metrics(cm)
         logging.info('===== eval metrics =====')
         logging.info(f"\n Accuracy ({config['test']['target_data']}):  {val_metrics['accuracy']}")

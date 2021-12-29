@@ -170,15 +170,15 @@ class WSIDataset(object):
         self.data_len = len(self.train_files) + len(self.valid_files) + len(self.test_files)
         print(f"[data] train: {len(self.train_files)}, valid: {len(self.valid_files)}, test: {len(self.test_files)}")
 
-        test_files = natsorted(test_files)
+        self.test_files = natsorted(self.test_files)
 
-        self.train_data = WSI(train_files, self.classes, self.shape, self.transform)
+        self.train_data = WSI(self.train_files, self.classes, self.shape, self.transform)
 
         test_transform = self.transform.copy()
         test_transform['HFlip'] = False
         test_transform['VFlip'] = False
-        self.valid_data = WSI(valid_files, self.classes, self.shape, test_transform)
-        self.test_data = WSI(test_files, self.classes, self.shape, test_transform)
+        self.valid_data = WSI(self.valid_files, self.classes, self.shape, test_transform)
+        self.test_data = WSI(self.test_files, self.classes, self.shape, test_transform)
 
     def __len__(self):
         return len(self.data_len)

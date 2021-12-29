@@ -225,8 +225,10 @@ def early_stop(val, epoch, best_model_info, patience=5, mode='max'):
 
 if __name__ == '__main__':
     fix_seed(0)
-    # config_path = './config/config_src.yaml'
-    config_path = '../config/config_src.yaml'
+    # # config_path = './config/config_src.yaml'
+    # config_path = '../config/config_src.yaml'
+
+    config_path = '../config/config_src_10_valwsi_LEV0.yaml'
 
     with open(config_path) as file:
         config = yaml.safe_load(file.read())
@@ -256,17 +258,17 @@ if __name__ == '__main__':
 
         net.to(device=device)
         train_files = joblib.load(
-            config['test']['jb_dir']
+            config['main']['jb_dir']
             + f"cv{cv_num}_"
             + f"train.jb"
         )
         valid_files = joblib.load(
-            config['test']['jb_dir']
+            config['main']['jb_dir']
             + f"cv{cv_num}_"
             + f"valid.jb"
         )
         test_files = joblib.load(
-            config['test']['jb_dir']
+            config['main']['jb_dir']
             + f"cv{cv_num}_"
             + f"test.jb"
         )
@@ -281,7 +283,6 @@ if __name__ == '__main__':
             transform=transform
         )
         train_data, valid_data, test_data = dataset.get()
-        train_wsi, valid_wsi, test_wsi = dataset.get_wsi_split()
 
         logging.info(f'''Starting training:
             Classes:           {config['main']['classes']}

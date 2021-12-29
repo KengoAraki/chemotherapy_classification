@@ -174,8 +174,11 @@ def plot_confusion_matrix(cm, class_names, normalize=True):
 
     # Normalize the confusion matrix.
     if normalize:
-        cm = np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2)
-    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+        cm = np.around(cm.astype("float") / cm.sum(axis=1)[:, np.newaxis], decimals=2)
+        plt.imshow(cm, interpolation="nearest", cmap=plt.cm.Blues, vmin=0, vmax=1)
+    else:
+        plt.imshow(cm, interpolation="nearest", cmap=plt.cm.Blues)
+
     plt.title("Confusion matrix")
     plt.colorbar()
     tick_marks = np.arange(len(class_names))
