@@ -26,6 +26,7 @@ if __name__ == "__main__":
     # config_path = '../config/config_src_LEV2.yaml'
 
     font_size = 35
+    cl_labels = ["Non-\nNeop.", "Tumor\nbed", "Residual\ntumor"]
 
     with open(config_path) as file:
         config = yaml.safe_load(file.read())
@@ -76,8 +77,7 @@ if __name__ == "__main__":
         wsis = joblib.load(
             config['dataset']['jb_dir']
             + f"cv{cv_num}_"
-            + f"{config['test']['target_data']}_"
-            + f"{config['main']['facility']}_wsi.jb"
+            + f"{config['test']['target_data']}_wsi.jb"
         )
         files = get_files(
             wsis=wsis,
@@ -114,11 +114,6 @@ if __name__ == "__main__":
         logging.info(f"\n Recall ({config['test']['target_data']}):    {val_metrics['recall']}")
         logging.info(f"\n F1 ({config['test']['target_data']}):        {val_metrics['f1']}")
         logging.info(f"\n mIoU ({config['test']['target_data']}):      {val_metrics['mIoU']}")
-
-        # 軸入れ替え
-        cm = cm[:, [0, 2, 1]]
-        cm = cm[[0, 2, 1], :]
-        cl_labels = ["Non-\nNeop.", "LSIL", "HSIL"]
 
         # Not-Normalized
         cm_plt = plot_confusion_matrix(
@@ -165,11 +160,6 @@ if __name__ == "__main__":
     logging.info(f"\n Recall ({config['test']['target_data']}):    {val_metrics['recall']}")
     logging.info(f"\n F1 ({config['test']['target_data']}):        {val_metrics['f1']}")
     logging.info(f"\n mIoU ({config['test']['target_data']}):      {val_metrics['mIoU']}")
-
-    # 軸入れ替え
-    cm_all = cm_all[:, [0, 2, 1]]
-    cm_all = cm_all[[0, 2, 1], :]
-    cl_labels = ["Non-\nNeop.", "LSIL", "HSIL"]
 
     # Not-Normalized
     cm_plt = plot_confusion_matrix(

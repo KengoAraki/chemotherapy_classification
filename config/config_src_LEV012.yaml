@@ -19,9 +19,9 @@ dataset:
 test:
   weight_dir: "/mnt/ssdsam/chemotherapy_strage/result_LEV012/checkpoints/[0, 1, 2]/"
   weight_names:
-    - "cv0_epoch8.pth"
-    - "cv1_epoch8.pth"
-    - "cv2_epoch2.pth"
+    - "cv0_epoch2.pth"
+    - "cv1_epoch6.pth"
+    - "cv2_epoch3.pth"
   output_dir: "/mnt/ssdsam/chemotherapy_strage/result_LEV012/test/"
   target_data: "test"
   get_miss: False
