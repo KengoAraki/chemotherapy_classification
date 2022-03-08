@@ -9,8 +9,9 @@ import numpy as np
 import itertools
 import cv2
 
-from util import make_grid_images
-from metrics import evalMet
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from src.util import make_grid_images
+from src.metrics import evalMet
 
 
 # for train mode
@@ -87,52 +88,6 @@ def eval_net_test(net, loader, criterion, device, get_miss=False, save_dir=None)
     return total_loss / n_val, cm
 
 
-def eval_net_test2(net, loader, criterion, device, get_miss=False, save_dir=None, prefix=""):
-    net.eval()
-
-    n_val = len(loader)  # the number of batch
-    total_loss = 0
-    init_flag = True
-    ADFB = AnalyzeDFB(argmax=True)
-
-    with tqdm(total=n_val, desc='Validation round', unit='batch', leave=False) as pbar:
-        batch_idx = 0
-        for batch in loader:
-            imgs, dfbs, labels = batch['image'], batch['dfb'], batch['label']
-            imgs = imgs.to(device=device, dtype=torch.float32)
-            dfbs = dfbs.to(device=device, dtype=torch.float32)
-            labels = labels.to(device=device, dtype=torch.long)
-
-            with torch.no_grad():
-                preds = net(imgs)
-
-            total_loss += criterion(preds, labels).item()
-
-            # confusion matrix
-            # TODO: ここでのSoftmaxが必要か調べる
-            preds = nn.Softmax(dim=1)(preds)
-            if init_flag:
-                cm = get_confusion_matrix(preds, labels)
-                df = ADFB.make_dataframe(preds, labels, dfbs, sep_num=1)
-                init_flag = False
-            else:
-                cm += get_confusion_matrix(preds, labels)
-                df_old = df.copy()
-                df = ADFB.make_dataframe(preds, labels, dfbs, sep_num=1)
-                df = ADFB.concat_dataframe(df, df_old)
-
-            if get_miss:
-                get_miss_preds(preds, labels, batch['name'], imgs, save_dir=save_dir + "miss_predict/",
-                               ext=str(batch_idx).zfill(3))
-
-            batch_idx += 1
-            pbar.update()
-
-    ADFB.save_dataframe(df, save_dir + f"{prefix}ADFB_dataframe.csv")
-    net.train()
-    return total_loss / n_val, cm
-
-
 def eval_metrics(cm):
     Met = evalMet()
     met_val = {'accuracy': 0, 'precision': 0, 'recall': 0, 'f1': 0, 'mIoU': 0}
@@ -159,7 +114,7 @@ def get_confusion_matrix(preds, targs):
     return cm
 
 
-def plot_confusion_matrix(cm, class_names, normalize=True):
+def plot_confusion_matrix(cm, class_names, normalize=True, font_size=20):
     """
     Returns a matplotlib figure containing the plotted confusion matrix.
 
@@ -170,7 +125,7 @@ def plot_confusion_matrix(cm, class_names, normalize=True):
     """
 
     figure = plt.figure(figsize=(8, 8))
-    plt.rcParams["font.size"] = 18
+    plt.rcParams["font.size"] = font_size
 
     # Normalize the confusion matrix.
     if normalize:
@@ -179,8 +134,8 @@ def plot_confusion_matrix(cm, class_names, normalize=True):
     else:
         plt.imshow(cm, interpolation="nearest", cmap=plt.cm.Blues)
 
-    plt.title("Confusion matrix")
-    plt.colorbar()
+    # plt.title("Confusion matrix")
+    # plt.colorbar()
     tick_marks = np.arange(len(class_names))
     plt.xticks(tick_marks, class_names, rotation=45)
     plt.yticks(tick_marks, class_names)

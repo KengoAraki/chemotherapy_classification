@@ -24,7 +24,7 @@ if __name__ == "__main__":
     fix_seed(0)
     # config_path = './config/config_src_LEV012.yaml'
     config_path = '../config/config_src_LEV012.yaml'
-    font_size = 35
+    font_size = 20
     cl_labels = ["Non-\nNeop.", "Tumor\nbed", "Residual\ntumor"]
 
     with open(config_path) as file:
@@ -113,7 +113,7 @@ if __name__ == "__main__":
 
         # Not-Normalized
         cm_plt = plot_confusion_matrix(
-            cm, cl_labels, normalize=False, font_size=25)
+            cm, cl_labels, normalize=False, font_size=20)
         cm_plt.savefig(
             config['test']['output_dir']
             + project
@@ -159,7 +159,7 @@ if __name__ == "__main__":
 
     # Not-Normalized
     cm_plt = plot_confusion_matrix(
-        cm_all, cl_labels, normalize=False, font_size=25)
+        cm_all, cl_labels, normalize=False, font_size=20)
     cm_plt.savefig(
         config['test']['output_dir']
         + project

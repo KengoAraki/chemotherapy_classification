@@ -28,6 +28,7 @@ def main():
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--config_path', default='../config/config_src_LEV012.yaml')
     parser.add_argument('--main_dir', default='/mnt/ssdsam/chemotherapy_strage/')
+    parser.add_argument('--batch_size', default=256)
 
     args = parser.parse_args()
     config_path = args.config_path
@@ -39,7 +40,9 @@ def main():
     # ========================================================== #
     WSI_DIR = MAIN_DIR + "mnt1/origin/"
     MASK_DIR = MAIN_DIR + f"mnt1/mask_cancergrade/overlaid_{config['main']['classes']}/"
-    PATCH_DIR = MAIN_DIR + "mnt3_LEV012/"
+    # PATCH_DIR = MAIN_DIR + "mnt3_LEV012/"
+
+    PATCH_DIR = MAIN_DIR.replace("ssdsam/", "ssdwdc/") + "mnt3_LEV012/"
 
     OUTPUT_DIR = config['main']['result_dir'] + "predmap/"
     os.makedirs(OUTPUT_DIR) if os.path.isdir(OUTPUT_DIR) is False else None
@@ -53,24 +56,18 @@ def main():
         format='%(levelname)s: %(message)s'
     )
 
-    project = (
-        config['main']['model']
-        + "_" + config['main']['optim']
-        + "_batch" + str(config['main']['batch_size'])
-        + "_shape" + str(config['main']['shape']))
-
     weight_dir = config['test']['weight_dir']
     weight_list = [weight_dir + name for name in config['test']['weight_names']]
 
     for cv_num in range(config['main']['cv']):
 
-        if cv_num != 1:
+        if cv_num != 2:
             continue
 
         wsis = joblib.load(
             config['dataset']['jb_dir']
             + f"cv{cv_num}_"
-            + f"{config['test']['target_data']}_{config['main']['facility']}_wsi.jb"
+            + f"{config['test']['target_data']}_wsi.jb"
         )
 
         net = MultiscaleNet(
@@ -133,7 +130,7 @@ def main():
             )
 
             loader = DataLoader(
-                test_data, batch_size=config['main']['batch_size'],
+                test_data, batch_size=args.batch_size,
                 shuffle=False, num_workers=0, pin_memory=True)
 
             n_val = len(loader)  # the number of batch
