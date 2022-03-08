@@ -41,22 +41,21 @@ def calculate_ratio(imgmap_path: str, log_file: str):
 
 
 def main():
-    predmap_dir = "/mnt/ssdwdc/chemotherapy_strage/result_mixcases/predmap/"
-    truemap_dir = "/mnt/ssdwdc/chemotherapy_strage/mnt1/mask_cancergrade/overlaid_[0, 1, 2]/"
-
-    pred_log_path = "/mnt/ssdwdc/chemotherapy_strage/result_mixcases/residual_tumor_ratio_predmap(mixcases).txt"
-    true_log_path = "/mnt/ssdwdc/chemotherapy_strage/result_mixcases/residual_tumor_ratio_truemap.txt"
-    
-    predmap_list = [predmap_dir + fname for fname in natsorted(os.listdir(predmap_dir)) if "_cl" not in fname]
+    truemap_dir = "/mnt/ssdsam/chemotherapy_strage/mnt1/mask_cancergrade/overlaid_[0, 1, 2]/"
+    true_log_path = "/mnt/ssdsam/chemotherapy_strage/result_LEV012/predmap/residual_tumor_ratio_truemap.txt"
     truemap_list = [truemap_dir + fname for fname in natsorted(os.listdir(truemap_dir))]
+
+    predmap_dir = "/mnt/ssdsam/chemotherapy_strage/result_LEV012/predmap/cv2/"
+    pred_log_path = "/mnt/ssdsam/chemotherapy_strage/result_LEV012/predmap/cv2/residual_tumor_ratio_predmap_LEV012_cv2.txt"
+    predmap_list = [predmap_dir + fname for fname in natsorted(os.listdir(predmap_dir)) if "_cl" not in fname]
 
     print("calculate predmap's ratio")
     for path in predmap_list:
        calculate_ratio(path, pred_log_path)
 
-    print("calculate truemap's ratio")
-    for path in truemap_list:
-       calculate_ratio(path, true_log_path)
+    # print("calculate truemap's ratio")
+    # for path in truemap_list:
+    #    calculate_ratio(path, true_log_path)
 
 
 if __name__ == "__main__":

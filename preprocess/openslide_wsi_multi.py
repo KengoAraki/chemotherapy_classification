@@ -641,7 +641,10 @@ def main_for_predmap_multi(
     p_parent_dir = pathlib.Path(PARENT_DIR)
 
     # output_main_dir = PARENT_DIR.replace("mnt1/", f"mnt3_LEV{LEVELS}/")
-    output_main_dir = PARENT_DIR.replace("mnt1/", f"mnt3_LEV{''.join(map(str, LEVELS))}/")
+    # output_main_dir = PARENT_DIR.replace("mnt1/", f"mnt3_LEV{''.join(map(str, LEVELS))}/")
+
+    output_main_dir = PARENT_DIR.replace("ssdsam/", f"ssdwdc/")
+    output_main_dir = output_main_dir.replace("mnt1/", f"mnt3_LEV{''.join(map(str, LEVELS))}/")
 
     wsi_list = natsorted([wsi_path for wsi_path in (p_parent_dir / "origin/").glob("*.ndpi")])
 
@@ -677,21 +680,21 @@ if __name__ == "__main__":
     #     CLASSES=CLASSES
     # )
 
-    main_multi(
-        PARENT_DIR=PARENT_DIR,
-        LEVELS=LEVELS,
-        CLASSES=CLASSES
-    )
-    main(
-        PARENT_DIR=PARENT_DIR,
-        LEVEL=0,
-        CLASSES=CLASSES
-    )
-    main(
-        PARENT_DIR=PARENT_DIR,
-        LEVEL=1,
-        CLASSES=CLASSES
-    )
+    # main_multi(
+    #     PARENT_DIR=PARENT_DIR,
+    #     LEVELS=LEVELS,
+    #     CLASSES=CLASSES
+    # )
+    # main(
+    #     PARENT_DIR=PARENT_DIR,
+    #     LEVEL=0,
+    #     CLASSES=CLASSES
+    # )
+    # main(
+    #     PARENT_DIR=PARENT_DIR,
+    #     LEVEL=1,
+    #     CLASSES=CLASSES
+    # )
 
     # main_for_predmap(PARENT_DIR=PARENT_DIR, LEVEL=LEVEL)
-    # main_for_predmap_multi(PARENT_DIR=PARENT_DIR, LEVELS=LEVELS)
+    main_for_predmap_multi(PARENT_DIR=PARENT_DIR, LEVELS=LEVELS)
