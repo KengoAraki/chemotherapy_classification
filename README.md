@@ -27,4 +27,22 @@ e.g., H〇〇-〇〇〇〇〇_■.ndpi/xml
 - H〇〇-〇〇〇〇〇: Case name
 - ■: Serial number of the case 
 
+
+## Directory
+- **analysis**: \
+    To calculate residual tumor ratio
+- **annotation**: \
+    To preprocess and visualize annotated area from original WSI (.ndpi)annotation file (.xml)
+- **config**: \
+    Config files of experiments (src & src_multi)
+- **environment**: \
+    Environment files for this project (Anaconda)
+- **preprocess**: \
+    Preprocess for an experiment. Split into patches basis on its annotated class. 
+- **src**: \
+    Experimet files for single-scale model
+- **src_multi**: \
+    Experiment files for multi-scale model
+- **visualize**: \
+    To modify a figure
 ---
